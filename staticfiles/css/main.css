@@ -1,0 +1,18 @@
+/* @import "https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/versions/bulma-no-dark-mode.min.css"; */
+@import "https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css";
+
+.icon{
+    font-size: larger;
+}
+
+.menu-list li a{
+    padding: 9px;
+    margin: 10px 0;
+    font-family: 'Times New Roman', Times, serif;
+}
+table thead tr th {
+    text-align: center !important;
+}
+table tbody tr td {
+    text-align: center !important;
+}

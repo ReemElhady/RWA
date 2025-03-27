@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<div class="box">
+    <p class="has-text-link is-size-5 mb-3">{% trans 'New Revenue' %}</p>
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- Display non-field errors -->
+        {% if revenue_form.non_field_errors or formset.non_form_errors %}
+        <div class="notification is-danger has-text-white">
+            {% for error in revenue_form.non_field_errors %}{{ error }}{% endfor %}
+            {% for error in formset.non_form_errors %}{{ error }}{% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Site & Neighborhood in the same line -->
+        <div class="field is-horizontal">
+            <div class="field-body">
+                <div class="field">
+                    <label class="label">{% trans 'Site' %}</label>
+                    <div class="select is-fullwidth">
+                        {{ revenue_form.site }}
+                    </div>
+                    {% if revenue_form.site.errors %}
+                    <p class="help is-danger">{{ revenue_form.site.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <div class="field">
+                    <label class="label">{% trans 'Neighborhood' %}</label>
+                    <div class="select is-fullwidth">
+                        {{ revenue_form.neighborhood }}
+                    </div>
+                    {% if revenue_form.neighborhood.errors %}
+                    <p class="help is-danger">{{ revenue_form.neighborhood.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Item, Amount, Description, From, To in the same line -->
+        <div id="item-container" style="overflow: auto;max-height: 245px;">
+            {{ formset.management_form }}
+            {% for form in formset %}
+            <fieldset class="item">
+                <div class="field is-horizontal">
+                    <div class="field-body is-align-items-self-end">
+                        <div class="field">
+                            <label class="label">{% trans 'Item' %}</label>
+                            <div class="select is-fullwidth">
+                                {{ form.item }}
+                            </div>
+                            {% if form.item.errors %}
+                            <p class="help is-danger">{{ form.item.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="field">
+                            <label class="label">{% trans 'Description' %}</label>
+                            <div class="control">
+                                {{ form.other_title }}
+                            </div>
+                            {% if form.other_title.errors %}
+                            <p class="help is-danger">{{ form.other_title.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="field">
+                            <label class="label">{% trans 'Amount' %}</label>
+                            <div class="control">
+                                {{ form.value }}
+                            </div>
+                            {% if form.value.errors %}
+                            <p class="help is-danger">{{ form.value.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="field">
+                            <label class="label">{% trans 'From' %}</label>
+                            <div class="control">
+                                {{ form.from_date }}
+                            </div>
+                            {% if form.from_date.errors %}
+                            <p class="help is-danger">{{ form.from_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="field">
+                            <label class="label">{% trans 'To' %}</label>
+                            <div class="control">
+                                {{ form.to_date }}
+                            </div>
+                            {% if form.to_date.errors %}
+                            <p class="help is-danger">{{ form.to_date.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Delete checkbox for formset -->
+                        <div class="field">
+                            <label class="checkbox mt-5">
+                                {{ form.DELETE }} {% trans 'Delete' %}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </fieldset>
+            {% endfor %}
+        </div>
+
+        <!-- Add Item button -->
+        <div class="control my-4 has-text-right">
+            <button type="button" class="button is-info is-small ml-2" id="add-item">{% trans 'Add Item' %}</button>
+        </div>
+
+        <!-- Submit button -->
+        <div class="control my-4 has-text-centered">
+            <button class="button is-link is-medium is-rounded px-6" type="submit">{% trans 'Save' %}</button>
+        </div>
+    </form>
+</div>
+
+<script>
+ document.addEventListener('DOMContentLoaded', () => {
+    // add new item
+    document.getElementById('add-item').addEventListener('click', () => {
+        const itemContainer = document.getElementById('item-container');
+        const totalForms = document.querySelector('#id_rev_item-TOTAL_FORMS');
+        const formIdx = Number(totalForms.value);
+
+        const newFormHtml = itemContainer.querySelector('.item').outerHTML.replace(/rev_item-\d+/g, `rev_item-${formIdx}`);
+        itemContainer.insertAdjacentHTML('beforeend', newFormHtml);
+
+        totalForms.value = formIdx + 1;
+    });
+    // load neighborhood 
+    async function load_negiborhoods(id) {
+        fetch(`/hygienebox/neighborhoods?area_id=${id}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('neigborhoods:', data);
+
+                const neighborhoodDropdown = document.getElementById('id_rev-neighborhood');
+                neighborhoodDropdown.innerHTML = '<option value="">---------</option>'; // Reset dropdown
+
+                data.forEach(n => {
+                    const option = document.createElement('option');
+                    option.value = n.id;
+                    option.textContent = n.name;
+                    neighborhoodDropdown.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading neighborhoods:', error));
+    }
+    document.getElementById('id_rev-site').addEventListener('change', (e) => {
+        load_negiborhoods(e.target.value);
+    })
+    // Ensure the 'other' description field shows/hides properly
+    function handleItemChange(selectElement) {
+        const rowNumber = selectElement.id.match(/\d+/)[0];
+        const otherField = document.getElementById(`id_rev_item-${rowNumber}-other_title`).closest('.field');
+        const selectedOption = selectElement.options[selectElement.selectedIndex].text;
+
+        if (selectedOption === "أخري") {
+            otherField.style.display = "block";
+            otherField.setAttribute("required", "required");
+        } else {
+            otherField.style.display = "none";
+            otherField.removeAttribute("required");
+            otherField.querySelector('input').value = "";
+        }
+    }
+
+    // Apply to all existing rows
+    document.querySelectorAll('select[id^="id_rev_item-"][id$="-item"]').forEach(select => {
+        select.addEventListener('change', () => handleItemChange(select));
+        handleItemChange(select);
+    });
+ });
+</script>
+
+{% endblock %}

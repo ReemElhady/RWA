@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+
+<div class="box mb-4">
+    <!-- ✅ Page Title -->
+    <div class="is-flex is-justify-content-space-between is-align-items-center mb-4">
+        <p class="has-text-link is-size-5 mb-3">{% trans 'Reports' %}</p>
+    </div>
+
+    <!-- ✅ Inline Form Setup -->
+    <form method="post">
+        {% csrf_token %}
+        <div class="field is-grouped is-grouped-multiline is-flex is-align-items-end">
+            {% for field in report_form %}
+            <div class="control">
+                <label class="label has-text-weight-semibold">{{ field.label }}</label>
+                <div {% if field.field.widget.input_type == 'select' %} class="select" {% endif %}>
+                    {{ field }}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- ✅ Submit Button -->
+            <div class="control">
+                <button type="submit" class="button is-link is-normal is-rounded px-5">
+                    <i class="fas fa-chart-bar"></i>&nbsp;{% trans 'Generate Report' %}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div>
+    <!-- ✅ Expense & Revenue Charts Section -->
+    <div class="box has-background-white">
+        <canvas id="revenue_item" width="" height="450"></canvas>
+    </div>
+    <div class="box has-background-white">
+        <canvas id="expense_item" width="" height="450"></canvas>
+    </div>
+</div>
+{% endblock content %}
+
+{% block javascript %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // ✅ Expense Chart
+    const ctxExpense = document.getElementById('expense_item').getContext('2d');
+    const expenseChart = new Chart(ctxExpense, {
+        type: 'bar',
+        data: {
+            labels: {{ expense_item_labels|safe }},
+            datasets: [{
+                label: 'Expenses',
+                data: {{ expense_item_values|safe }},
+                backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+
+    // ✅ Revenue Chart
+    const ctxRevenue = document.getElementById('revenue_item').getContext('2d');
+    const revenueChart = new Chart(ctxRevenue, {
+        type: 'bar',
+        data: {
+            labels: {{ revenue_item_labels|safe }},
+            datasets: [{
+                label: 'Revenues',
+                data: {{ revenue_item_values|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+
+    // load data from server     
+    async function load_negiborhoods(id) {
+        fetch(`/hygienebox/neighborhoods?area_id=${id}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('neigborhoods:', data);
+
+                const neighborhoodDropdown = document.getElementById('id_neighborhood');
+                neighborhoodDropdown.innerHTML = '<option value="">---------</option>'; // Reset dropdown
+
+                data.forEach(n => {
+                    const option = document.createElement('option');
+                    option.value = n.id;
+                    option.textContent = n.name;
+                    neighborhoodDropdown.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error loading neighborhoods:', error));
+    }
+    document.getElementById('id_site').addEventListener('change', (e) => {
+        load_negiborhoods(e.target.value);
+    })
+</script>
+
+{% endblock javascript %}

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load humanize %}
+{% block content %}
+<div>
+    <div class="columns">
+        <!-- ✅ Revenue Box -->
+        <div class="column">
+            <div class="box is-flex is-justify-content-space-between">
+                <img src="{% static 'img/R.png' %}" height="50px" width="50px">
+                <div class="is-flex-direction-column">
+                    <h4 class="is-family-secondary">{% trans 'Revenues' %}</h4>
+                    <h1 class="has-text-weight-bold">{{ total_revenue|intcomma }} {% trans 'EGP' %}</h1>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Expense Box -->
+        <div class="column">
+            <div class="box is-flex is-justify-content-space-between">
+                <img src="{% static 'img/E.png' %}" height="50px" width="50px">
+                <div class="is-flex-direction-column">
+                    <h4 class="is-family-secondary">{% trans 'Expenses' %}</h4>
+                    <h1 class="has-text-weight-bold">{{ total_expense|intcomma }} {% trans 'EGP' %}</h1>
+                </div>
+            </div>
+        </div>
+
+        <!-- ✅ Placeholder "Other" Box -->
+        <div class="column">
+            <div class="box is-flex is-justify-content-space-between">
+                <img src="{% static 'img/E.png' %}" height="50px" width="50px">
+                <div class="is-flex-direction-column">
+                    <h4 class="is-family-secondary">Other</h4>
+                    <h1 class="has-text-weight-bold is-family-sans-serif">0</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ Expense & Revenue Charts -->
+    <div class="box has-background-white">
+        <canvas id="total_rev_exp" width="" height="450"></canvas>
+    </div>
+</div>
+{% endblock content %}
+
+{% block javascript %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // ✅ Revenue and Expense Chart with Different Colors
+    const ctxExpense = document.getElementById('total_rev_exp').getContext('2d');
+    const expenseChart = new Chart(ctxExpense, {
+        type: 'bar',
+        data: {
+            labels: ['إجمالى الإيرادات', 'إجمالى المصروفات'],
+            datasets: [{
+                label: 'Revenues',
+                data: [{{ total_revenue }}, 0],
+                backgroundColor: 'rgba(75, 192, 192, 0.7)',  // Greenish-blue for revenue
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            },
+            {
+                label: 'Expenses',
+                data: [0, {{ total_expense }}],
+                backgroundColor: 'rgba(255, 99, 132, 0.7)',  // Red for expenses
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { position: 'top' },
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+{% endblock javascript %}

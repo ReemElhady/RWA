@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load humanize %}
+{% block content %}
+
+<div class="box">
+    <div class="is-flex is-justify-content-space-between is-align-items-center">
+        <p class="has-text-link is-size-4 has-text-weight-semibold mb-4">{% trans 'Edit Revenue' %}</p>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <input type="hidden" id="selected_neighborhood" value="{{ revenue_form.neighborhood.value }}">
+
+        <!-- Main Revenue Form -->
+        <div class="field">
+            <label class="label">{% trans 'Revenue Details' %} "{{pk}}"</label>
+            <div class="columns is-multiline">
+                {% for field in revenue_form %}
+                <div class="column is-half">
+                    <div class="field">
+                        <label class="label">{{ field.label }}</label>
+                        <div class="control">
+                            {{ field }}
+                        </div>
+                        {% if field.help_text %}
+                        <p class="help">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}
+                        <p class="help is-danger">{{ field.errors }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+
+        <!-- Revenue Items Formset -->
+        <label class="label mt-4">{% trans 'Items' %}</label>
+        {{ items_formset.management_form }}
+
+        <div class="table-container">
+            <table class="table is-fullwidth is-striped is-hoverable">
+                <thead>
+                    <tr>
+                        <th>{% trans 'Item Name' %}</th>
+                        <th>{% trans 'Amount' %}</th>
+                        <th>{% trans 'From' %}</th>
+                        <th>{% trans 'To' %}</th>
+                        <th>{% trans 'Actions' %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for form in items_formset %}
+                    <tr>
+                        {{ form.id }}
+                        <td>{{ form.item }}</td>
+                        <td>{{ form.value }}</td>
+                        <td>{{ form.from_date }}</td>
+                        <td>{{ form.to_date }}</td>
+                        <td>
+                            <button type="button" class="button is-danger is-small"
+                                onclick="this.closest('tr').remove()">
+                                {% trans 'Delete' %}
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Save Button -->
+        <div class="mt-4 has-text-centered">
+            <button type="submit" class="button is-success is-medium">
+                {% trans "Save Changes" %}
+            </button>
+        </div>
+    </form>
+
+</div>
+
+{% endblock content %}
+
+{% block javascript %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const siteSelect = document.getElementById("id_rev-site");
+    const neighborhoodSelect = document.getElementById("id_rev-neighborhood");
+    const selectedNeighborhood = document.getElementById("selected_neighborhood").value;
+
+    // Load neighborhoods dynamically
+    async function loadNeighborhoods(siteId, preselectedNeighborhood = null) {
+        try {
+            const response = await fetch(`/hygienebox/neighborhoods?area_id=${siteId}`);
+            if (!response.ok) throw new Error(`Failed to load neighborhoods. Status: ${response.status}`);
+
+            const data = await response.json();
+            console.log("Loaded neighborhoods:", data);
+
+            // Reset dropdown
+            neighborhoodSelect.innerHTML = '<option value="">---------</option>';
+
+            data.forEach((n) => {
+                const option = document.createElement("option");
+                option.value = n.id;
+                option.textContent = n.name;
+
+                // Preselect the existing value on reload/edit
+                if (n.id == preselectedNeighborhood) {
+                    option.selected = true;
+                }
+
+                neighborhoodSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error("Error loading neighborhoods:", error);
+        }
+    }
+
+    // Load neighborhoods when site changes
+    siteSelect.addEventListener("change", (e) => {
+        loadNeighborhoods(e.target.value);
+    });
+
+    // On form load (like edit or error), trigger the dropdown with preselected neighborhood
+    if (siteSelect.value) {
+        loadNeighborhoods(siteSelect.value, selectedNeighborhood);
+    }
+});
+
+</script>
+{% endblock %}

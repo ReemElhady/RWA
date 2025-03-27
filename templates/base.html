@@ -1,0 +1,56 @@
+{% load static %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html {% if LANGUAGE_CODE == 'ar' %}dir="rtl"{% else %}dir="ltr"{% endif %} lang="{{ LANGUAGE_CODE }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Bulma CSS -->
+    {% comment %} <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css"> {% endcomment %}
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <!-- Fontawesome --> <!--for icons-->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.hugeicons.com/font/hgi-stroke-rounded.css" />
+
+
+    <title>Webapp | {% block title %}Welcome{% endblock title %}</title>
+    {% block header %}{% endblock header %}
+</head>
+
+<body class="has-background-light">
+    
+    <!-- Navbar -->
+    <nav class="navbar" role="navigation" aria-label="main navigation">
+        {% include 'includes/navbar.html' %}
+    </nav>
+
+    <!-- Layout Grid -->
+    <div class="columns is-gap" style="min-height: calc(100vh - 4rem); gap: 10px;">
+        
+        <!-- Sidebar -->
+         
+    {% if request.user.is_authenticated %}
+        <aside class="column is-2 has-background-white p-3 has-shadow">
+            {% include 'includes/sidebar.html' %}
+        </aside>
+    {% endif %}
+        <!-- Main Content Area -->
+        <main class="column has-background-light p-4 mt-3">
+            {% block content %}
+            {% endblock content %}
+        </main>
+    </div>
+
+    <!-- JavaScript Block --> 
+    {% block javascript %}
+    <script>
+       
+    </script>
+    {% endblock javascript %}
+</body>
+
+</html>

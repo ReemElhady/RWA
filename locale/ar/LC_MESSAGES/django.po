@@ -1,0 +1,353 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-03-25 13:28-0500\n"
+"PO-Revision-Date: 2025-03-25 05:20+0500\n"
+"Last-Translator: Your Name <youremail@example.com>\n"
+"Language-Team: Arabic <LL@li.org>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 "
+"&& n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5;\n"
+
+#: core/models.py:7 core/models.py:13 core/models.py:19
+msgid "City"
+msgstr "محافظة"
+
+#: core/models.py:14 core/models.py:20 hygienebox/models.py:110
+msgid "Area"
+msgstr "منطقة"
+
+#: core/models.py:21
+msgid "Village"
+msgstr "حى / قرية"
+
+#: hygienebox/models.py:111 templates/hygienebox/contract_list.html:45
+#: templates/hygienebox/expense_form.html:31
+#: templates/hygienebox/expense_list.html:46
+#: templates/hygienebox/expense_list.html:124
+#: templates/hygienebox/revenue_form.html:31
+#: templates/hygienebox/revenue_list.html:51
+#: templates/hygienebox/revenue_list.html:148
+#: templates/hygienebox/revenue_list.html:192
+msgid "Neighborhood"
+msgstr "حى / قرية"
+
+#: hygienebox/models.py:112 templates/hygienebox/contract_list.html:46
+#: templates/hygienebox/expense_form.html:69
+msgid "Service Provider"
+msgstr "مقدم الخدمة"
+
+#: hygienebox/models.py:113 templates/hygienebox/contract_list.html:47
+#: templates/hygienebox/expense_list.html:132
+#: templates/hygienebox/revenue_list.html:156
+#: templates/hygienebox/revenue_list.html:200
+msgid "Value (EGP)"
+msgstr "المبلغ"
+
+#: hygienebox/models.py:114
+msgid "from"
+msgstr "من"
+
+#: hygienebox/models.py:115
+msgid "to"
+msgstr "إلى"
+
+#: rwagproject/settings.py:131
+msgid "English"
+msgstr "الإنجليزية"
+
+#: rwagproject/settings.py:132
+msgid "Arabic"
+msgstr "العربية"
+
+#: templates/accounts/login.html:16
+msgid "Login"
+msgstr "تسجيل الدخول"
+
+#: templates/accounts/login.html:35
+msgid "Check"
+msgstr "تحقق"
+
+#: templates/hygienebox/contract_form.html:7
+#: templates/hygienebox/contract_list.html:34
+msgid "New Contract"
+msgstr "عقد جديد"
+
+#: templates/hygienebox/contract_form.html:34
+#: templates/hygienebox/expense_form.html:117
+#: templates/hygienebox/revenue_form.html:118
+msgid "Save"
+msgstr "حفظ"
+
+#: templates/hygienebox/contract_list.html:16
+#: templates/includes/sidebar.html:49
+msgid "Contracts"
+msgstr "تعاقدات"
+
+#: templates/hygienebox/contract_list.html:31
+#: templates/hygienebox/expense_list.html:31
+#: templates/hygienebox/revenue_list.html:36
+msgid "Apply Filter"
+msgstr "فلتر"
+
+#: templates/hygienebox/contract_list.html:44
+#: templates/hygienebox/expense_form.html:21
+#: templates/hygienebox/expense_list.html:45
+#: templates/hygienebox/expense_list.html:123
+#: templates/hygienebox/revenue_form.html:21
+#: templates/hygienebox/revenue_list.html:50
+#: templates/hygienebox/revenue_list.html:147
+#: templates/hygienebox/revenue_list.html:191
+msgid "Site"
+msgstr "موقع"
+
+#: templates/hygienebox/contract_list.html:47
+#: templates/hygienebox/dashboard.html:14
+#: templates/hygienebox/dashboard.html:25
+#: templates/hygienebox/expense_list.html:48
+#: templates/hygienebox/revenue_list.html:53
+msgid "EGP"
+msgstr "ج.م"
+
+#: templates/hygienebox/contract_list.html:48
+msgid "Start Date"
+msgstr "بداية من"
+
+#: templates/hygienebox/contract_list.html:49
+msgid "End Date"
+msgstr "حتى إلى"
+
+#: templates/hygienebox/contract_list.html:50
+#: templates/hygienebox/expense_edit.html:49
+#: templates/hygienebox/expense_list.html:49
+#: templates/hygienebox/revenue_edit.html:50
+#: templates/hygienebox/revenue_list.html:54
+msgid "Actions"
+msgstr "الإجراءات"
+
+#: templates/hygienebox/contract_list.html:64
+#: templates/hygienebox/expense_list.html:63
+#: templates/hygienebox/revenue_list.html:68
+msgid "Edit"
+msgstr "تعديل"
+
+#: templates/hygienebox/contract_list.html:69
+#: templates/hygienebox/expense_edit.html:62
+#: templates/hygienebox/expense_form.html:101
+#: templates/hygienebox/expense_list.html:68
+#: templates/hygienebox/revenue_edit.html:64
+#: templates/hygienebox/revenue_form.html:102
+#: templates/hygienebox/revenue_list.html:73
+msgid "Delete"
+msgstr "حذف"
+
+#: templates/hygienebox/contract_list.html:76
+msgid "No Contracts found."
+msgstr "لا يوجد عقود"
+
+#: templates/hygienebox/contract_update_form.html:8
+#, fuzzy
+#| msgid "Contracts"
+msgid "Edit Contract"
+msgstr "تعاقدات"
+
+#: templates/hygienebox/contract_update_form.html:16
+#, fuzzy
+#| msgid "Contracts"
+msgid "Contract Details"
+msgstr "تعاقدات"
+
+#: templates/hygienebox/contract_update_form.html:40
+#: templates/hygienebox/expense_edit.html:74
+#: templates/hygienebox/revenue_edit.html:76
+msgid "Save Changes"
+msgstr "حفظ التعديلات"
+
+#: templates/hygienebox/dashboard.html:13
+#: templates/hygienebox/revenue_list.html:20 templates/includes/sidebar.html:37
+msgid "Revenues"
+msgstr "الإيرادات"
+
+#: templates/hygienebox/dashboard.html:24
+#: templates/hygienebox/expense_list.html:16 templates/includes/sidebar.html:43
+msgid "Expenses"
+msgstr "المصروفات"
+
+#: templates/hygienebox/expense_edit.html:8
+#, fuzzy
+#| msgid "Expenses"
+msgid "Edit Expense"
+msgstr "المصروفات"
+
+#: templates/hygienebox/expense_edit.html:16
+#: templates/hygienebox/expense_list.html:86
+msgid "Expense Details"
+msgstr "تفاصيل المصروف"
+
+#: templates/hygienebox/expense_edit.html:39
+#: templates/hygienebox/expense_list.html:127
+#: templates/hygienebox/revenue_edit.html:39
+#: templates/hygienebox/revenue_list.html:151
+#: templates/hygienebox/revenue_list.html:195
+msgid "Items"
+msgstr "البنود"
+
+#: templates/hygienebox/expense_edit.html:46
+#: templates/hygienebox/expense_list.html:131
+#: templates/hygienebox/revenue_edit.html:46
+#: templates/hygienebox/revenue_list.html:155
+#: templates/hygienebox/revenue_list.html:199
+msgid "Item Name"
+msgstr "البند"
+
+#: templates/hygienebox/expense_edit.html:47
+#: templates/hygienebox/expense_form.html:79
+#: templates/hygienebox/revenue_edit.html:47
+#: templates/hygienebox/revenue_form.html:70
+msgid "Amount"
+msgstr "المبلغ"
+
+#: templates/hygienebox/expense_edit.html:48
+#: templates/hygienebox/expense_form.html:89
+#: templates/hygienebox/revenue_edit.html:48
+#: templates/hygienebox/revenue_form.html:80
+msgid "From"
+msgstr "من"
+
+#: templates/hygienebox/expense_form.html:5
+#: templates/hygienebox/expense_list.html:34
+msgid "New Expense"
+msgstr "مصروف جديد"
+
+#: templates/hygienebox/expense_form.html:50
+#: templates/hygienebox/revenue_form.html:50
+msgid "Item"
+msgstr "البند"
+
+#: templates/hygienebox/expense_form.html:60
+#: templates/hygienebox/revenue_form.html:60
+msgid "Description"
+msgstr "الوصف"
+
+#: templates/hygienebox/expense_form.html:112
+#: templates/hygienebox/revenue_form.html:113
+msgid "Add Item"
+msgstr "بند جديد"
+
+#: templates/hygienebox/expense_list.html:44
+#: templates/hygienebox/revenue_list.html:49
+msgid "Registration No."
+msgstr "الرقم التسجيلى"
+
+#: templates/hygienebox/expense_list.html:47
+#: templates/hygienebox/revenue_list.html:52
+msgid "Date Created"
+msgstr "تاريخ الإنشاء"
+
+#: templates/hygienebox/expense_list.html:48
+#: templates/hygienebox/expense_list.html:125
+msgid "Total Expense"
+msgstr "الإجمالى"
+
+#: templates/hygienebox/expense_list.html:62
+#: templates/hygienebox/revenue_list.html:67
+msgid "Info"
+msgstr "تفاصيل"
+
+#: templates/hygienebox/expense_list.html:75
+msgid "No expenses found."
+msgstr "لا يوجد مصروفات"
+
+#: templates/hygienebox/expense_list.html:92
+#: templates/hygienebox/expense_list.html:116
+#: templates/hygienebox/revenue_list.html:98
+#: templates/hygienebox/revenue_list.html:117
+#: templates/hygienebox/revenue_list.html:140
+#: templates/hygienebox/revenue_list.html:184
+msgid "Loading details..."
+msgstr ""
+
+#: templates/hygienebox/expense_list.html:96
+#: templates/hygienebox/revenue_list.html:102
+#: templates/hygienebox/revenue_list.html:121
+msgid "Close"
+msgstr "غلق"
+
+#: templates/hygienebox/expense_list.html:122
+#: templates/hygienebox/revenue_list.html:146
+#: templates/hygienebox/revenue_list.html:190
+msgid "Register Number"
+msgstr "الرقم التسجيلى"
+
+#: templates/hygienebox/expense_list.html:141
+#: templates/hygienebox/revenue_list.html:165
+#: templates/hygienebox/revenue_list.html:209
+#, fuzzy
+#| msgid "No expenses found."
+msgid "No items found"
+msgstr "لا يوجد مصروفات"
+
+#: templates/hygienebox/expense_list.html:147
+#: templates/hygienebox/revenue_list.html:171
+#: templates/hygienebox/revenue_list.html:215
+msgid "Failed to load details."
+msgstr "فشل فى التحميل"
+
+#: templates/hygienebox/reports.html:7 templates/includes/sidebar.html:55
+msgid "Reports"
+msgstr "التقارير"
+
+#: templates/hygienebox/revenue_edit.html:8
+#: templates/hygienebox/revenue_list.html:111
+msgid "Edit Revenue"
+msgstr "تعديل الإيراد"
+
+#: templates/hygienebox/revenue_edit.html:16
+#: templates/hygienebox/revenue_list.html:92
+#, fuzzy
+#| msgid "Expense Details"
+msgid "Revenue Details"
+msgstr "تفاصيل المصروف"
+
+#: templates/hygienebox/revenue_edit.html:49
+#: templates/hygienebox/revenue_form.html:90
+msgid "To"
+msgstr "إلى"
+
+#: templates/hygienebox/revenue_form.html:5
+#: templates/hygienebox/revenue_list.html:39
+msgid "New Revenue"
+msgstr "إيراد جديد"
+
+#: templates/hygienebox/revenue_list.html:53
+#: templates/hygienebox/revenue_list.html:149
+#: templates/hygienebox/revenue_list.html:193
+msgid "Total Revenue"
+msgstr "الإجمالى"
+
+#: templates/hygienebox/revenue_list.html:80
+#, fuzzy
+#| msgid "No expenses found."
+msgid "No revenues found."
+msgstr "لا يوجد مصروفات"
+
+#: templates/includes/navbar.html:18
+msgid "Hgiene Box"
+msgstr "صندوق النظافة"
+
+#: templates/includes/navbar.html:19
+msgid "logout"
+msgstr "تسجيل الخروج"
+
+#: templates/includes/sidebar.html:31
+msgid "Dashboard"
+msgstr "لوحة التحكم"
