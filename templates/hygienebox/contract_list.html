@@ -1,89 +1,395 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% load humanize %}
 {% load static %}
+{% load humanize %}
+{% load user_groups %}
+
 {% block content %}
-{% if messages %}
-<div class="notification is-success has-text-white">
-    {% for message in messages %}
-    <button class="delete"></button>
-    {{ message }}
-    {% endfor %}
-</div>
-{% endif %}
 <div class="box">
-    <div class="is-flex is-justify-content-space-between is-align-items-center">
-        <p class="has-text-link is-size-5 mb-3">{% trans 'Contracts' %}</p>
-    </div> 
-    <fieldset class="my-3">
-        <div class="is-flex is-justify-content-space-between">
-            <form>
-                <div class="select is-normal">
-                    <select name="site_select" id="site_select">
-                        <option value="">Select Site</option>
-                    </select>
+    <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
+        <h2 class="has-text-link is-size-5">{% trans 'Contracts' %}</h2>
+        {% if user|has_group:"Admin" or user|has_group:"Editor" %}
+            <a href="{% url 'contract-form' %}" class="button is-success is-normal">{% trans 'New Contract' %}</a>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <div class="box p-4 mb-4">
+        <form method="get">
+            <div class="columns is-multiline">
+                <div class="column is-2">
+                    <label class="label">{% trans "City" %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="city" id="citySelect">
+                            <option value="">{% trans "All Cities" %}</option>
+                            {% for city in cities %}
+                                <option value="{{ city.id }}" {% if request.GET.city == city.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ city.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <div class="select is-normal">
-                    <select name="neighborhood_select" id="neighborhood_select">
-                        <option value="">Select Neighborhood</option>
-                    </select>
+
+                <div class="column is-2">
+                    <label class="label">{% trans "Region" %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="region" id="regionSelect">
+                            <option value="">{% trans "All Regions" %}</option>
+                        </select>
+                    </div>
                 </div>
-                <button type="submit" class="button is-info is-normal"><i class="hgi hgi-stroke hgi-filter"></i>{% trans 'Apply Filter' %}</button>
-            </form>
-            <div>
-                <a href="{% url 'create_contract' %}" class="button has-text-white is-success is-normal">{% trans 'New Contract' %} </a>
+
+                <div class="column is-2">
+                    <label class="label">{% trans "District" %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="district" id="districtSelect">
+                            <option value="">{% trans "All Districts" %}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="column is-2">
+                    <label class="label">{% trans "Town" %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="town" id="townSelect">
+                            <option value="">{% trans "All Towns" %}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="column is-2">
+                    <label class="label">{% trans "Neighborhood" %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="neighborhood" id="neighborhoodSelect">
+                            <option value="">{% trans "All Neighborhoods" %}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="column is-2">
+                    <label class="label">&nbsp;</label>
+                    <button class="button is-info is-fullwidth" type="submit">
+                        <i class="fas fa-filter"></i> {% trans 'Filter' %}
+                    </button>
+                </div>
             </div>
-        </div>
-    
-    </fieldset>
-    <div>
-        <table class="table is-fullwidth is-striped is-hoverable">
-            <thead>
+        </form>
+    </div>
+
+    <!-- Contracts Table -->
+    <table class="table is-fullwidth is-striped is-hoverable">
+        <thead>
+            <tr>
+                <th>{% trans 'Provider' %}</th>
+                <th>{% trans 'City' %}</th>
+                <th>{% trans 'Region' %}</th>
+                <th>{% trans 'Districts' %}</th>
+                <th>{% trans 'Towns' %}</th>
+                <th>{% trans 'Neighborhoods' %}</th>
+                <th>{% trans 'Value (EGP)' %}</th>
+                <th>{% trans 'Start Date' %}</th>
+                <th>{% trans 'End Date' %}</th>
+                <th>{% trans 'Actions' %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contract in contract_list %}
                 <tr>
-                    <th>#</th>
-                    <th>{% trans 'Site' %}</th>
-                    <th>{% trans 'Neighborhood' %}</th>
-                    <th>{% trans 'Service Provider' %}</th>
-                    <th>{% trans 'Value (EGP)' %} {% trans 'EGP' %}</th>
-                    <th>{% trans 'Start Date' %}</th>
-                    <th>{% trans 'End Date' %}</th>
-                    <th>{% trans 'Actions' %}</th>
+                    <td>{{ contract.provider_name }}</td>
+                    <td>{% if contract.city %}
+                            {{ contract.city.name }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if contract.region %}
+                            {{ contract.region.name }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        {% if contract.districts.all %}
+                            {% for d in contract.districts.all %}
+                                {{ d.name }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                -
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        {% if contract.towns.all %}
+                            {% for t in contract.towns.all %}
+                                {{ t.name }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                -
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    
+                    <td>
+                        {% if contract.neighborhoods.all %}
+                            {% for n in contract.neighborhoods.all %}
+                                {{ n.name }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                -
+                            {% endfor %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    
+                    <td>{{ contract.value|intcomma }}</td>
+                    <td>{{ contract.commencing_date }}</td>
+                    <td>{{ contract.end_date }}</td>
+                    
+                    <td>
+                        {% if user|has_group:"Admin" %}
+                        <a href="{% url 'edit-contract' contract.id %}" class="button is-warning is-small">{% trans 'Edit' %}</a>
+                        <form action="{% url 'delete-contract' contract.id %}" method="post" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="button is-danger is-small"
+                                    onclick="return confirm('{% trans 'Are you sure you want to delete this contract?' %}')">
+                                {% trans 'Delete' %}
+                            </button>
+                        </form>
+                        {% endif %}
+                        <!-- View Details Button -->
+                        <button type="button" class="button is-info is-small" onclick="openModal('modal-contract-{{ contract.id }}')">
+                            {% trans 'View Details' %}
+                        </button>
+                    </td>
+
                 </tr>
-            </thead>
-            <tbody>
-                {% for contract in contract_list %}
+            {% empty %}
+                <tr>
+                    <td colspan="10" class="has-text-centered">{% trans 'No contracts found.' %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% for contract in contract_list %}
+<div id="modal-contract-{{ contract.id }}" class="modal">
+    <div class="modal-background" onclick="closeModal('modal-contract-{{ contract.id }}')"></div>
+    <div class="modal-card" style="width: 90%; max-width: 1000px;">
+        <header class="modal-card-head">
+            <p class="modal-card-title">{% trans "Contract Details" %} ({{ contract.provider_name }})</p>
+            <button class="delete" aria-label="close" onclick="closeModal('modal-contract-{{ contract.id }}')"></button>
+        </header>
+        <section class="modal-card-body">
+            <table class="table is-fullwidth is-striped is-hoverable">
+                <tbody>
                     <tr>
-                        <td>{{forloop.counter}}</td>
-                        <td>{{contract.site}}</td>
-                        <td>{{contract.neighborhood}}</td>
-                        <td>{{contract.service_provider}}</td>
-                        <td>{{contract.value|intcomma}}</td>
-                        <td>{{contract.from_date}}</td>
-                        <td>{{contract.to_date}}</td>
+                        <th>{% trans "Provider" %}</th>
+                        <td>{{ contract.provider_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "City" %}</th>
                         <td>
-                            <a href="{% url 'edit-contract' contract.id %}" class="button is-warning is-small">{% trans 'Edit' %}</a>
-                            <form action="{% url 'delete-contract' contract.id %}" method="post" style="display:inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="button is-danger is-small" 
-                                    onclick="return confirm('Are you sure you want to delete this expense?')">
-                                    {% trans 'Delete' %}
-                                </button>
-                            </form>
+                            {% if contract.city %}
+                                {{ contract.city.name }}
+                            {% else %}
+                                -
+                            {% endif %}
                         </td>
                     </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="has-text-centered">{% trans 'No Contracts found.' %}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    <tr>
+                        <th>{% trans "Region" %}</th>
+                        <td>
+                            {% if contract.region %}
+                                {{ contract.region.name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Districts" %}</th>
+                        <td>
+                            {% if contract.districts.exists %}
+                                {% for district in contract.districts.all %}
+                                    {{ district.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Towns" %}</th>
+                        <td>
+                            {% if contract.towns.exists %}
+                                {% for town in contract.towns.all %}
+                                    {{ town.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Neighborhoods" %}</th>
+                        <td>
+                            {% if contract.neighborhoods.exists %}
+                                {% for n in contract.neighborhoods.all %}
+                                    {{ n.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <th>{% trans "Value (EGP)" %}</th>
+                        <td>{{ contract.value|intcomma }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Remaining Value" %}</th>
+                        <td>{{ contract.remaining }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Start Date" %}</th>
+                        <td>{{ contract.commencing_date }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "End Date" %}</th>
+                        <td>{{ contract.end_date }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Created By" %}</th>
+                        <td>
+                            {% if contract.created_by %}
+                                {{ contract.created_by.get_full_name|default:contract.created_by.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        
+                    </tr>
+                    <tr>
+                        <th>{% trans "Created at" %}</th>
+                        <td>{{ contract.created_at }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Last Updated By" %}</th>
+                        <td>
+                            {% if contract.updated_by %}
+                                {{ contract.updated_by.get_full_name|default:contract.updated_by.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        
+                    </tr>
+                    <tr>
+                        <th>{% trans "Last Updated at" %}</th>
+                        <td>{{ contract.updated_at }}</td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+        </section>
+        <footer class="modal-card-foot">
+            <button class="button" onclick="closeModal('modal-contract-{{ contract.id }}')">{% trans 'Close' %}</button>
+        </footer>
     </div>
 </div>
+{% endfor %}
 
-{% endblock content %}
+</div>
+{% endblock %}
+
 {% block javascript %}
-{{ block.super }}
-<script src="{% static 'js/helpers.js' %}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const regionSelect = document.getElementById('regionSelect');
+    const districtSelect = document.getElementById('districtSelect');
+    const townSelect = document.getElementById('townSelect');
+    const neighborhoodSelect = document.getElementById('neighborhoodSelect');
 
-{% endblock javascript %}
+    $('#citySelect').change(function () {
+        const cityId = $(this).val();
+        resetSelect(regionSelect, 'All Regions');
+        resetSelect(districtSelect, 'All Districts');
+        resetSelect(townSelect, 'All Towns');
+        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+        if (cityId) {
+            $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
+                data.forEach(region => {
+                    $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
+                });
+            });
+        }
+    });
+
+    $('#regionSelect').change(function () {
+        const regionId = $(this).val();
+        resetSelect(districtSelect, 'All Districts');
+        resetSelect(townSelect, 'All Towns');
+        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+        if (regionId) {
+            $.get(`/hygienebox/districts/?region_id=${regionId}`, data => {
+                data.forEach(d => {
+                    $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`);
+                });
+            });
+        }
+    });
+
+    $('#districtSelect').change(function () {
+        const districtId = $(this).val();
+        resetSelect(townSelect, 'All Towns');
+        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+        if (districtId) {
+            $.get(`/hygienebox/towns/?district_ids=${districtId}`, data => {
+                data.forEach(t => {
+                    $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`);
+                });
+            });
+        }
+    });
+
+    $('#townSelect').change(function () {
+        const townId = $(this).val();
+        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+        if (townId) {
+            $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, data => {
+                data.forEach(n => {
+                    $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`);
+                });
+            });
+        }
+    });
+
+    function resetSelect(selectElement, placeholder) {
+        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+    }
+});
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.add('is-active');
+  }
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.remove('is-active');
+  }
+}
+</script>
+{% endblock %}

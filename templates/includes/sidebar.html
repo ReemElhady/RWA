@@ -2,45 +2,10 @@
 
 <div class="menu p-2">
     <ul class="menu-list">
-        {% if cities %}
-            {% for city in cities %}
-            <li>
-                <strong>{{ city.name }}</strong>
-                {% if city.areas.all %}
-                <ul>
-                    {% for area in city.areas.all %}
-                    <li>
-                        {{ area.name }}
-                        {% if area.neighborhood.all %}
-                        <ul>
-                            {% for n in area.neighborhood.all %}
-                            <li>{{ n.name }}</li>
-                            {% endfor %}
-                        </ul>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-            </li>
-            {% endfor %}
-        {% else %}
         <li>
             <a class="is-flex is-align-items-center has-text-dark" href="{% url 'hygienebox_dashboard' %}">
                 <span class="icon"><i class="hgi hgi-stroke hgi-dashboard-square-02"></i></span>
                 <span class="mx-2">{% trans 'Dashboard' %}</span>
-            </a>
-        </li>
-        <li>
-            <a class="is-flex is-align-items-center has-text-dark" href="{% url 'revenues' %}">
-                <span class="icon"><i class="hgi hgi-stroke hgi-sharp hgi-coins-01"></i></span>
-                <span class="mx-2">{% trans 'Revenues' %}</span>
-            </a>
-        </li>
-        <li>
-            <a class="is-flex is-align-items-center has-text-dark" href="{% url 'expenses' %}">
-                <span class="icon"><i class="hgi hgi-stroke hgi-sharp hgi-payment-02"></i></span>
-                <span class="mx-2">{% trans 'Expenses' %}</span>
             </a>
         </li>
         <li>
@@ -50,12 +15,23 @@
             </a>
         </li>
         <li>
+            <a class="is-flex is-align-items-center has-text-dark" href="{% url 'expenses_list' %}">
+                <span class="icon"><i class="hgi hgi-stroke hgi-sharp hgi-payment-02"></i></span>
+                <span class="mx-2">{% trans 'Expenses' %}</span>
+            </a>
+        </li>
+        <li>
+            <a class="is-flex is-align-items-center has-text-dark" href="{% url 'revenues_list' %}">
+                <span class="icon"><i class="hgi hgi-stroke hgi-sharp hgi-payment-02"></i></span>
+                <span class="mx-2">{% trans 'Revenues' %}</span>
+            </a>
+        </li>
+        <li>
             <a class="is-flex is-align-items-center has-text-dark" href="{% url 'reports' %}">
                 <span class="icon"><i class="hgi hgi-stroke hgi-chart-line-data-02"></i></span>
                 <span class="mx-2">{% trans 'Reports' %}</span>
             </a>
         </li>
-        {% endif %}
     </ul>
 
 </div>

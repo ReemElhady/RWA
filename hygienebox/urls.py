@@ -2,21 +2,34 @@ from django.urls import path
 from . import views
 urlpatterns = [
     path('dashboard/',views.dashboard,name='hygienebox_dashboard'),
+    
+    #Contracts
+    path('contracts/create/', views.create_contract, name='create_contract'),
+    path('contracts/form/', views.contract_form_view, name='contract-form'),
+    path('contracts/<int:contract_id>/committed-areas/', views.get_committed_areas, name='committed-areas'),
+    path('regions/', views.get_regions),
+    path('districts/', views.get_districts),
+    path('towns/', views.get_towns),
+    path('neighborhoods/', views.get_neighborhoods),
+    path('contracts/', views.contract_list_view, name='contracts'),
+    path('contracts/edit/<int:contract_id>/', views.edit_contract, name='edit-contract'),
+    path('contracts/delete/<int:contract_id>/', views.delete_contract, name='delete-contract'),
+
+    #Expenses
+    path('create/expense/', views.create_expense, name='create_expense'),
+    path('expense/form/', views.expense_form_view, name='expense-form'),
+    path('expenses/list/',views.expense_list_view,name='expenses_list'),
+    path('expenses/delete/<int:expense_id>/', views.delete_expense, name='delete-expense'),
+    path('expenses/edit/<int:expense_id>/', views.edit_expense, name='edit-expense'),
+    
+    
+    #Revenues
+    path('create/revenue/', views.create_revenue, name='create_revenue'),
+    path('revenue/form/', views.revenue_form_view, name='revenue-form'),
+    path('revenues/list/',views.revenues_list_view,name='revenues_list'),
+    path('revenues/delete/<int:revenue_id>/', views.delete_revenue, name='delete-revenue'),
+    path('revenues/edit/<int:revenue_id>/', views.edit_revenue, name='edit-revenue'),
+    
+    #Reports
     path('reports/',views.reports,name='reports'),
-    path('sites/',views.load_areas,name='sites'),
-    path('neighborhoods/',views.load_neighborhoods,name='neighborhoods'),
-    path('create/revenue',views.RevenueFormView.as_view(),name='create_revenue'),
-    path('create/expense',views.ExpenseFormView.as_view(),name='create_expense'),
-    path('revenues',views.RevenueListView.as_view(),name='revenues'),
-    path('expenses',views.ExpenseListView.as_view(),name='expenses'),
-    path('revenue/details/<int:pk>/',views.revenue_details,name='rev-details'),
-    path('expense/details/<int:pk>/',views.expense_details,name='exp-details'),
-    path('revenue/edit/<int:pk>/',views.RevenueEditView.as_view(),name='edit-revenue'),
-    path('expense/edit/<int:pk>/',views.ExpenseEditView.as_view(),name='edit-expense'),
-    path('revenue/delete/<int:pk>/',views.RevenueDeleteView.as_view(),name='delete-revenue'),
-    path('expense/delete/<int:pk>/',views.ExpenseDeleteView.as_view(),name='delete-expense'),
-    path('contracts/',views.ContractListView.as_view(),name='contracts'),
-    path('create/contract/',views.ContractFormView.as_view(),name='create_contract'),
-    path('edit/contract/<int:pk>/',views.ContractEditView.as_view(),name='edit-contract'),
-    path('delete/contract/<int:pk>/',views.ContractDeleteView.as_view(),name='delete-contract'),
 ]

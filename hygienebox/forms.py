@@ -1,173 +1,251 @@
-from ast import arg
-from .models import Item, RevenueReg, RevenueItem , ExpenseReg , ExpenseItem , Contract
+from .models import Contract, Expense, ExpenseItem, Item, Revenue, RevenueItem
 from django import forms
-from django.forms import modelformset_factory
-from core.models import Area, Neighborhood
+from django.forms import inlineformset_factory
+from core.models import City, Region, District, Town, Neighborhood
+from django.utils.translation import gettext_lazy as _
 
+#Contracts
+class ContractForm(forms.ModelForm):
+    class Meta:
+        model = Contract
+        fields = [
+            'provider_name', 'value', 'remaining', 'duration',
+            'contract_date', 'commencing_date', 'end_date',
+            'city', 'region', 'districts', 'towns', 'neighborhoods'
+        ]
+        labels = {
+            'provider_name': _("Provider Name"),
+            'value': _("Value"),
+            'remaining': _("Remaining"),
+            'duration': _("Duration"),
+            'contract_date': _("Contract Date"),
+            'commencing_date': _("Commencing Date"),
+            'end_date': _("End Date"),
+            'city': _("City"),
+            'region': _("Region"),
+            'districts': _("Districts"),
+            'towns': _("Towns"),
+            'neighborhoods': _("Neighborhoods"),
+        }
+        widgets = {
+            'contract_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'commencing_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'end_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'provider_name': forms.TextInput(attrs={'class': 'input'}),
+            'value': forms.NumberInput(attrs={'class': 'input'}),
+            'duration': forms.NumberInput(attrs={'class': 'input'}),
+            'remaining': forms.NumberInput(attrs={'class': 'input'}),
+            'city': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'region': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'districts': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'towns': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'neighborhoods': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+        }
+        
+#Expenses     
+class ExpenseForm(forms.ModelForm):
+    class Meta:
+        model = Expense
+        fields = ['city', 'region', 'districts', 'towns', 'neighborhoods']
+        labels = {
+            'city': _("City"),
+            'region': _("Region"),
+            'districts': _("Districts"),
+            'towns': _("Towns"),
+            'neighborhoods': _("Neighborhoods"),
+        }
+        widgets = {
+            'city': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'region': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'districts': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'towns': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'neighborhoods': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+        }
+
+class ExpenseItemForm(forms.ModelForm):
+    class Meta:
+        model = ExpenseItem
+        fields = ['item', 'contract', 'value', 'taxes', 'hanged_value', 'amount_due', 'on_date', 'receipt_number', 'receipt_file', 'other_text']
+        labels = {
+            'item': _("Item"),
+            'contract': _("Contract"),
+            'value': _("Value"),
+            'taxes': _("Taxes"),
+            'hanged_value': _("Hanged Value"),
+            'amount_due': _("Amount Due"),
+            'on_date': _("On Date"),
+            'receipt_number': _("Receipt Number"),
+            'receipt_file': _("Receipt File"),
+            'other_text': _("Other Description"),
+        }
+        widgets = {
+            'item': forms.Select(attrs={'class': 'input'}),
+            'contract': forms.Select(attrs={'class': 'input'}),
+            'value': forms.NumberInput(attrs={'class': 'input'}),
+            'taxes': forms.NumberInput(attrs={'class': 'input'}),
+            'hanged_value': forms.NumberInput(attrs={'class': 'input'}),
+            'amount_due': forms.NumberInput(attrs={'class': 'input'}),
+            'on_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
+            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
+            'other_text': forms.TextInput(attrs={'class': 'input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter item queryset
+        self.fields['item'].queryset = Item.objects.filter(type_choice='expenses')
+
+        # Now control fields based on instance data
+        instance = kwargs.get('instance')
+        if instance and instance.pk:
+            if instance.item:
+                if instance.contract:
+                    if 'other_text' in self.fields:
+                        self.fields['other_text'].widget = forms.HiddenInput()
+                        self.fields['other_text'].required = False
+                elif instance.item.name.strip() == 'أخري':
+                    # It's an "Other" item
+                    for field_name in ['taxes', 'hanged_value', 'amount_due', 'contract']:
+                        if field_name in self.fields:
+                            self.fields[field_name].required = False
+                            self.fields[field_name].widget = forms.HiddenInput()
+                else:
+                    # Regular item
+                    for field_name in ['taxes', 'hanged_value', 'amount_due', 'other_text', 'contract']:
+                        if field_name in self.fields:
+                            self.fields[field_name].required = False
+                            self.fields[field_name].widget = forms.HiddenInput()
+            else:
+                # No item at all
+                for field_name in ['taxes', 'hanged_value', 'amount_due', 'other_text', 'contract']:
+                    if field_name in self.fields:
+                        self.fields[field_name].required = False
+                        self.fields[field_name].widget = forms.HiddenInput()
+
+ExpenseItemFormSet = inlineformset_factory(
+    Expense, ExpenseItem,
+    form=ExpenseItemForm,
+    fields='__all__',
+    extra=0,
+    can_delete=True
+)
+
+#Revenues
 class RevenueForm(forms.ModelForm):
     class Meta:
-        model = RevenueReg
-        fields = ['site', 'neighborhood']
-        # success_url = reverse_lazy('hygienebox_dashboard')
-        widgets = {
-            'site': forms.Select(attrs={'class': 'input'}),
-            'neighborhood': forms.Select(attrs={'class': 'input'}),
+        model = Revenue
+        fields = ['city', 'region', 'districts', 'towns', 'neighborhoods']
+        labels = {
+            'city': _("City"),
+            'region': _("Region"),
+            'districts': _("Districts"),
+            'towns': _("Towns"),
+            'neighborhoods': _("Neighborhoods"),
         }
-    
-    # def __init__(self,*args,**kwargs):
-    #     super().__init__(*args,**kwargs)
-    #     if not self.instance.pk:
-    #         self.fields['neighborhood'].queryset = Neighborhood.objects.none()         
+        widgets = {
+            'city': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'region': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'districts': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'towns': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'neighborhoods': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+        }
         
 class RevenueItemForm(forms.ModelForm):
     class Meta:
         model = RevenueItem
-        fields = ['revenue','item','value','other_title','from_date','to_date']
-        # success_url = reverse_lazy('hygienebox_dashboard')
-        widgets = {
-            'revenue': forms.Select(attrs={'class': 'input'}),
-            'item': forms.Select(attrs={'class': 'input'}),
-            'other_title': forms.TextInput(attrs={'class': 'input'}),
-            'value': forms.NumberInput(attrs={'class': 'input'}),
-            'from_date': forms.DateInput(attrs={'class': 'input', 'type': 'date',}),
-            'to_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+        fields = ['item', 'value', 'from_date', 'to_date', 'receipt_number', 'receipt_file', 'other_text']
+        labels = {
+            'item': _("Item"),
+            'value': _("Value"),
+            'from_date': _("From Date"),
+            'to_date': _("To Date"),
+            'receipt_number': _("Receipt Number"),
+            'receipt_file': _("Receipt File"),
+            'other_text': _("Other Description"),
         }
-    def __init__(self,*args , **kwargs):
-        super().__init__(*args , **kwargs)
+        widgets = {
+            'item': forms.Select(attrs={'class': 'input'}),
+            'value': forms.NumberInput(attrs={'class': 'input'}),
+            'from_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'to_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
+            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
+            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
+            'other_text': forms.TextInput(attrs={'class': 'input'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter item queryset
         self.fields['item'].queryset = Item.objects.filter(type_choice='revenues')
 
-    def clean(self):
-        cleaned_data = super().clean()
-        site = cleaned_data.get('site')
-        neighborhood = cleaned_data.get('neighborhood')
-        from_date = cleaned_data.get('from_date')
-        to_date = cleaned_data.get('to_date')
-        # ✅ Rule 1: Ensure neighborhood is only selected if a site is chosen
-        if neighborhood and not site:
-            self.add_error('neighborhood', "You must select a site first before choosing a neighborhood.")
+        # Now control fields based on instance data
+        instance = kwargs.get('instance')
+        if instance and instance.pk:
+            if instance.item:
+                if not instance.item.name.strip() == 'أخري':
+                    if 'other_text' in self.fields:
+                        self.fields['other_text'].widget = forms.HiddenInput()
+                        self.fields['other_text'].required = False
 
-        # ✅ Rule 2: Ensure "from_date" is before "to_date"
-        if from_date and to_date and from_date > to_date:
-            self.add_error('to_date', "End date must be after start date.")
-
-        # ✅ Rule 3: Ensure at least one filter is applied
-        if not site and not from_date and not to_date:
-            raise forms.ValidationError("Please select at least a site or a date range to filter the report.")
-
-        return cleaned_data
-
-RevenueItemFormSet = modelformset_factory(
-    RevenueItem,
+RevenueItemFormSet = inlineformset_factory(
+    Revenue,RevenueItem,
     form=RevenueItemForm,
-    fields=["id","item", "value", "other_title", "from_date", "to_date"],
-    extra=1,  # Keep the extra row for new entries
+    fields='__all__',
+    extra=0,  
     can_delete=True,
-    validate_max=False,
-    validate_min=False,  # Ensure partial forms don't break
 )
-
-class ExpenseForm(forms.ModelForm):
-    class Meta:
-        model = ExpenseReg
-        fields = ['site', 'neighborhood']
-        # success_url = reverse_lazy('hygienebox_dashboard')
-        widgets = {
-            'site': forms.Select(attrs={'class': 'input'}),
-            'neighborhood': forms.Select(attrs={'class': 'input'}),
-        }
-    # def __init__(self,*args,**kwargs):
-    #     super().__init__(*args,**kwargs)
-    #     if not self.instance.pk:
-    #         self.fields['neighborhood'].queryset = Neighborhood.objects.none()
-    #     if "site" in self.data:
-    #         try:
-    #             site_id = int(self.data.get("site"))
-    #             self.fields["neighborhood"].queryset = Neighborhood.objects.filter(area_id=site_id)
-    #         except (ValueError, TypeError):
-    #             pass
-class ExpenseItemForm(forms.ModelForm):
-    class Meta:
-        model = ExpenseItem
-        fields = ['id','expense','item','value','other_title','contract','from_date']
-        # success_url = reverse_lazy('hygienebox_dashboard')
-        widgets = {
-            'expense': forms.Select(attrs={'class': 'input'}),
-            'item': forms.Select(attrs={'class': 'input'}),
-            'value': forms.NumberInput(attrs={'class': 'input'}),
-            'other_title': forms.TextInput(attrs={'class': 'input'}),
-            'contract': forms.Select(attrs={'class': 'input'}),
-            'from_date': forms.DateInput(attrs={'class': 'input', 'type': 'date',}),
-        }
-    def __init__(self,*args , **kwargs):
-        super().__init__(*args , **kwargs)
-        self.fields['item'].queryset = Item.objects.filter(type_choice='expenses')
-        
-ExpenseItemFormSet = modelformset_factory(
-    ExpenseItem,
-    form=ExpenseItemForm,
-    fields=["item", "value", "other_title",'contract', "from_date"],
-    extra=1,  # Keep the extra row for new entries
-    can_delete=True,
-    validate_max=False,
-    validate_min=False,  # Ensure partial forms don't break
-)
-
-class ContractForm(forms.ModelForm):
-    # def __init__(self,*args,**kwargs):
-    #     super().__init__(*args,**kwargs)
-    #     if not self.instance.pk:
-    #         self.fields['neighborhood'].queryset = Neighborhood.objects.none()
-    class Meta:
-        model = Contract
-        fields = ['site','neighborhood','service_provider','value','from_date' , 'to_date']
-        widgets = {
-            'site': forms.Select(attrs={'class': 'input'}),
-            'neighborhood': forms.Select(attrs={'class': 'input'}),
-            'service_provider': forms.Select(attrs={'class': 'input'}),
-            'value': forms.NumberInput(attrs={'class': 'input'}),
-            'from_date': forms.DateInput(attrs={'class': 'input', 'type': 'date',}),
-            'to_date': forms.DateInput(attrs={'class': 'input', 'type': 'date',}),
-
-        }
-    def clean(self):
-        cleaned_data = super().clean()
-        value = cleaned_data.get("value")
-        start_date = cleaned_data.get("from_date")
-        end_date = cleaned_data.get("to_date")
-        if value and start_date and end_date:
-            if start_date > end_date:
-                raise forms.ValidationError("Start date must be before end date.")
-            if value < 0:
-                raise forms.ValidationError("Value must be positive.")
-            return cleaned_data
 
 class ReportForm(forms.Form):
-    site = forms.ModelChoiceField(
+    city = forms.ModelChoiceField(
+        label=_("City"),
+        queryset=City.objects.all(),
         required=False,
-        queryset=Area.objects.all(),
-        empty_label="Select a site",
+        # empty_label=_("Select a city"),
+        empty_label=_("Select"),
+        widget=forms.Select(attrs={'class': 'input'})
+    )
+    region = forms.ModelChoiceField(
+        label=_("Region"),
+        queryset=Region.objects.all(),
+        required=False,
+        # empty_label=_("Select a region"),
+        empty_label=_("Select"),
+        widget=forms.Select(attrs={'class': 'input'})
+    )
+    district = forms.ModelChoiceField(
+        label=_("District"),
+        queryset=District.objects.all(),
+        required=False,
+        # empty_label=_("Select a district"),
+        empty_label=_("Select"),
+        widget=forms.Select(attrs={'class': 'input'})
+    )
+    town = forms.ModelChoiceField(
+        label=_("Town"),
+        queryset=Town.objects.all(),
+        required=False,
+        # empty_label=_("Select a town"),
+        empty_label=_("Select"),
         widget=forms.Select(attrs={'class': 'input'})
     )
     neighborhood = forms.ModelChoiceField(
+        label=_("Neighborhood"),
+        queryset=Neighborhood.objects.all(),
         required=False,
-        queryset=Neighborhood.objects.none(),
-        empty_label="Select a neighborhood",
-        widget=forms.Select(attrs={'class': 'input','style':"width:250px"})
+        # empty_label=_("Select a neighborhood"),
+        empty_label=_("Select"),
+        widget=forms.Select(attrs={'class': 'input'})
     )
     from_date = forms.DateField(
+        label=_("From Date"),
         required=False,
         widget=forms.DateInput(attrs={'class': 'input', 'type': 'date'})
     )
-
     to = forms.DateField(
+        label=_("To Date"),
         required=False,
         widget=forms.DateInput(attrs={'class': 'input', 'type': 'date'})
     )
-    # ✅ Custom initialization
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if 'site' in self.data:
-            site_id = self.data.get('site')
-            # ✅ If a site is selected, filter neighborhoods
-            if site_id:
-                self.fields['neighborhood'].queryset = Neighborhood.objects.filter(area_id=site_id)

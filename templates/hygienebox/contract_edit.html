@@ -1,94 +1,83 @@
 {% extends 'base.html' %}
 {% load i18n %}
-{% load humanize %}
 {% block content %}
+<div class="box p-5">
+    <h1 class="title is-4 has-text-link mb-5">
+        <i class="fas fa-edit mr-2"></i> {% trans 'Edit Contract' %} - {{ contract.provider_name }}
+    </h1>
 
-<div class="box">
-    <div class="is-flex is-justify-content-space-between is-align-items-center">
-        <p class="has-text-link is-size-4 has-text-weight-semibold mb-4">{% trans 'Edit Contract' %}</p>
-    </div>
     <form method="post">
         {% csrf_token %}
-        <input type="hidden" id="selected_neighborhood" value="{{ form.neighborhood.value }}">
+        <div class="columns is-multiline">
 
-        <!-- Main Contract Form -->
-        <div class="field">
-            <div class="columns is-multiline">
-               {% for field in form %}
-                <div class="column is-half">
-                    <div class="field">
-                        <label class="label">{{ field.label }}</label>
-                        <div class="control">
-                            {{ field }}
-                        </div>
-                        {% if field.help_text %}
-                        <p class="help">{{ field.help_text }}</p>
-                        {% endif %}
-                        {% if field.errors %}
-                        <p class="help is-danger">{{ field.errors }}</p>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
+            <div class="column is-6">
+                <label class="label">{% trans "Provider Name" %}</label>
+                <input class="input" type="text" name="provider_name" value="{{ form.provider_name.value|default:'' }}">
+            </div>
+            <div class="column is-6">
+                <label class="label">{% trans "City" %}</label>
+                {{ form.city }}
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Region" %}</label>
+                {{ form.region }}
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Districts" %}</label>
+                {{ form.districts }}
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Towns" %}</label>
+                {{ form.towns }}
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Neighborhoods" %}</label>
+                {{ form.neighborhoods }}
+            </div>
+            
+            <div class="column is-6">
+                <label class="label">{% trans "Value (EGP)" %}</label>
+                <input class="input" type="number" name="value" value="{{ form.value.value|default:'' }}">
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Duration (Months)" %}</label>
+                <input class="input" type="number" name="duration" value="{{ form.duration.value|default:12 }}">
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Remaining Amount" %}</label>
+                <input class="input" type="number" name="remaining" value="{{ form.remaining.value|default:'' }}">
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Contract Date" %}</label>
+                {{ form.contract_date }}
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Commencing Date" %}</label>
+                {{ form.commencing_date }}
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "End Date" %}</label>
+                {{ form.end_date }}
             </div>
         </div>
 
-        <!-- Save Button -->
-        <div class="mt-4 has-text-centered">
-            <button type="submit" class="button is-success is-medium">
-                {% trans "Save Changes" %}
+        <div class="has-text-centered mt-5">
+            <button class="button is-link is-medium is-rounded px-6" type="submit">
+                <i class="fas fa-save"></i> &nbsp;{% trans 'Save Changes' %}
             </button>
+            <a href="{% url 'contracts' %}" class="button is-light is-medium is-rounded px-6">
+                {% trans 'Cancel' %}
+            </a>
         </div>
     </form>
-
 </div>
-{% endblock content %}
-{% block javascript %}
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-    const siteSelect = document.getElementById("id_site");
-    const neighborhoodSelect = document.getElementById("id_neighborhood");
-    const selectedNeighborhood = document.getElementById("selected_neighborhood").value;
-
-    // Load neighborhoods dynamically
-    async function loadNeighborhoods(siteId, preselectedNeighborhood = null) {
-        try {
-            const response = await fetch(`/hygienebox/neighborhoods?area_id=${siteId}`);
-            if (!response.ok) throw new Error(`Failed to load neighborhoods. Status: ${response.status}`);
-
-            const data = await response.json();
-            console.log("Loaded neighborhoods:", data);
-
-            // Reset dropdown
-            neighborhoodSelect.innerHTML = '<option value="">---------</option>';
-
-            data.forEach((n) => {
-                const option = document.createElement("option");
-                option.value = n.id;
-                option.textContent = n.name;
-
-                // Preselect the neighborhood if it's already set
-                if (n.id == preselectedNeighborhood) {
-                    option.selected = true;
-                }
-
-                neighborhoodSelect.appendChild(option);
-            });
-        } catch (error) {
-            console.error("Error loading neighborhoods:", error);
-        }
-    }
-
-    // Load neighborhoods when site changes
-    siteSelect.addEventListener("change", (e) => {
-        loadNeighborhoods(e.target.value);
-    });
-
-    // On form load (edit or error reload), trigger dropdown with preselected neighborhood
-    if (siteSelect.value) {
-        loadNeighborhoods(siteSelect.value, selectedNeighborhood);
-    }
-});
-
-</script>
 {% endblock %}

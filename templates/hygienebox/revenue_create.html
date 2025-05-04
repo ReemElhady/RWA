@@ -1,0 +1,253 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+<div class="box p-5">
+    <h1 class="title is-4 has-text-link mb-5">
+        <i class="fas fa-file-invoice-dollar mr-2"></i> {% trans 'New Revenue' %}
+    </h1>
+
+    <form id="revenueForm" class="form" enctype="multipart/form-data">
+        <div class="columns is-multiline">
+
+            <div class="column is-6">
+                <label class="label">{% trans "City" %}</label>
+                <div class="select is-fullwidth">
+                    <select name="city" id="citySelect">
+                        <option value="">{% trans "Select City" %}</option>
+                        {% for city in cities %}
+                            <option value="{{ city.id }}">{{ city.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Region" %}</label>
+                <div class="select is-fullwidth">
+                    <select name="region" id="regionSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Districts" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="districts" id="districtSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Towns" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="towns" id="townSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Neighborhoods" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="neighborhoods" id="neighborhoodSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-12">
+                <label class="label">{% trans "Revenue Items" %}</label>
+                <div id="items-container"></div>
+                <button type="button" class="button is-small is-info mt-2" onclick="addItem()">{% trans "Add Item" %}</button>
+            </div>
+        </div>
+
+        <div class="has-text-centered mt-5">
+            <button class="button is-link is-medium is-rounded px-6" type="submit">
+                <i class="fas fa-check"></i> &nbsp;{% trans 'Save' %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+    const placeholders = {
+        otherDescription: "{{ _('Other Description')|escapejs }}",
+        value: "{{ _('Value')|escapejs }}",
+        receiptNumber: "{{ _('Receipt Number')|escapejs }}",
+        fromDate: "{{ _('From Date')|escapejs }}",
+        toDate: "{{ _('To Date')|escapejs }}"
+    };
+    let itemIndex = 0;
+    const itemOptions = `{% for item in items %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}`;    
+    function addItem() {
+        const container = document.getElementById('items-container');
+        container.insertAdjacentHTML('beforeend', `
+            <div class="box" data-item-index="${itemIndex}">
+                <div class="field">
+                    <label class="label">{% trans 'Item' %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="item-${itemIndex}-item" onchange="handleItemChange(this)">
+                            <option value="">---------</option>
+                            ${itemOptions}
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <input class="input my-1" type="text" name="item-${itemIndex}-other_text"
+                        placeholder="${placeholders.otherDescription}" style="display:none;">
+                </div>
+                <input class="input my-1" type="number" name="item-${itemIndex}-value"
+                    placeholder="${placeholders.value}">
+                <input class="input my-1" type="text" name="item-${itemIndex}-receipt_number"
+                    placeholder="${placeholders.receiptNumber}">
+                <input class="input my-1" type="date" name="item-${itemIndex}-from_date"
+                    placeholder="${placeholders.fromDate}">
+                <input class="input my-1" type="date" name="item-${itemIndex}-to_date"
+                    placeholder="${placeholders.toDate}">
+                <input class="input my-1" type="file" name="item-${itemIndex}-receipt_file">
+            </div>
+        `);
+        itemIndex++;
+    }
+
+    
+    function handleItemChange(selectElement) {
+        const container = selectElement.closest('.box');
+        const selectedText = selectElement.options[selectElement.selectedIndex].textContent.trim();
+        
+        const otherTextInput = container.querySelector(`[name$="-other_text"]`);
+        
+        if (selectedText === "أخري") {
+            otherTextInput.style.display = "block";
+            otherTextInput.required = true;
+        } else {
+            otherTextInput.style.display = "none";
+            otherTextInput.required = false;
+            otherTextInput.value = "";
+        }
+    }
+    
+    function getData(url, callback) {
+        fetch(url).then(res => res.json()).then(callback);
+    }
+    
+    $('#citySelect').change(function () {
+        const cityId = $(this).val();
+        $('#regionSelect').empty(); $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
+        if (cityId) {
+            getData(`/hygienebox/regions/?city_id=${cityId}`, data => {
+                $('#regionSelect').append('<option value="">{% trans "Select Region" %}</option>');
+                data.forEach(region => $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`));
+            });
+        }
+    });
+    
+    $('#regionSelect').change(function () {
+        const regionId = $(this).val();
+        $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
+        if (regionId) {
+            getData(`/hygienebox/districts/?region_id=${regionId}`, data => {
+                data.forEach(d => $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`));
+            });
+        }
+    });
+    
+    $('#districtSelect').change(function () {
+        const ids = $(this).val();
+        $('#townSelect').empty(); $('#neighborhoodSelect').empty();
+        if (ids) {
+            getData(`/hygienebox/towns/?district_ids=${ids.join(',')}`, data => {
+                data.forEach(t => $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`));
+            });
+        }
+    });
+    
+    $('#townSelect').change(function () {
+        const ids = $(this).val();
+        $('#neighborhoodSelect').empty();
+        if (ids) {
+            getData(`/hygienebox/neighborhoods/?town_ids=${ids.join(',')}`, data => {
+                data.forEach(n => $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`));
+            });
+        }
+    });
+    
+    document.getElementById('revenueForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData();
+        formData.append('city', $('#citySelect').val() || '');
+        formData.append('region', $('#regionSelect').val() || '');
+
+        // Add districts, towns, neighborhoods
+        ($('#districtSelect').val() || []).forEach(val => formData.append('districts', val));
+        ($('#townSelect').val() || []).forEach(val => formData.append('towns', val));
+        ($('#neighborhoodSelect').val() || []).forEach(val => formData.append('neighborhoods', val));
+
+        // Build revenue items array
+        const revenueItems = [];
+        
+        for (let i = 0; i < itemIndex; i++) {
+            const itemContainer = $(`[data-item-index="${i}"]`);
+            if (itemContainer.length === 0) continue;
+
+            const itemData = {
+                item: itemContainer.find(`[name="item-${i}-item"]`).val(),
+                value: itemContainer.find(`[name="item-${i}-value"]`).val(),
+                receipt_number: itemContainer.find(`[name="item-${i}-receipt_number"]`).val(),
+                from_date: itemContainer.find(`[name="item-${i}-from_date"]`).val(),
+                to_date: itemContainer.find(`[name="item-${i}-to_date"]`).val()
+            };
+
+            // Optional fields
+            const otherText = itemContainer.find(`[name="item-${i}-other_text"]`).val();
+            if (otherText) itemData.other_text = otherText;
+
+            // Handle file upload
+            const fileInput = itemContainer.find(`[name="item-${i}-receipt_file"]`)[0];
+            if (fileInput && fileInput.files.length > 0) {
+                const fileKey = `receipt_file_${i}`;
+                formData.append(fileKey, fileInput.files[0]);
+                itemData.receipt_file = fileKey;
+            }
+
+            revenueItems.push(itemData);
+        }
+
+        // Add revenue items as JSON string
+        formData.append('revenue_items', JSON.stringify(revenueItems));
+
+        // Debug: Show what's being sent
+        console.log('Submitting revenue items:', revenueItems);
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
+
+        fetch('/hygienebox/create/revenue/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.message || 'Revenue created successfully');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+        });
+    });
+</script>
+    
+{% endblock %}

@@ -1,0 +1,345 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+<div class="box p-5">
+    <h1 class="title is-4 has-text-link mb-5">
+        <i class="fas fa-file-invoice-dollar mr-2"></i> {% trans 'New Expense' %}
+    </h1>
+
+    <form id="expenseForm" class="form" enctype="multipart/form-data">
+        <div class="columns is-multiline">
+
+            <div class="column is-6">
+                <label class="label">{% trans "City" %}</label>
+                <div class="select is-fullwidth">
+                    <select name="city" id="citySelect">
+                        <option value="">{% trans "Select City" %}</option>
+                        {% for city in cities %}
+                            <option value="{{ city.id }}">{{ city.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Region" %}</label>
+                <div class="select is-fullwidth">
+                    <select name="region" id="regionSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Districts" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="districts" id="districtSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Towns" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="towns" id="townSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Neighborhoods" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="neighborhoods" id="neighborhoodSelect"></select>
+                </div>
+            </div>
+
+            <div class="column is-12">
+                <label class="label">{% trans "Expense Items" %}</label>
+                <div id="items-container"></div>
+                <button id="addItemButton" type="button" class="button is-small is-info mt-2" onclick="addItem()">{% trans "Add Item" %}</button>
+
+            </div>
+        </div>
+
+        <div class="has-text-centered mt-5">
+            <button class="button is-link is-medium is-rounded px-6" type="submit">
+                <i class="fas fa-check"></i> &nbsp;{% trans 'Save' %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block javascript %}
+<script>
+    const placeholders = {
+        otherDescription: "{{ _('Other Description')|escapejs }}",
+        taxes: "{{ _('Taxes')|escapejs }}",
+        hangedValue: "{{ _('Hanged Value')|escapejs }}",
+        amountDue: "{{ _('Amount Due')|escapejs }}",
+        value: "{{ _('Value')|escapejs }}",
+        receiptNumber: "{{ _('Receipt Number')|escapejs }}",
+        date: "{{ _('Date')|escapejs }}"
+    };
+    let itemIndex = 0;
+    const itemOptions = `{% for item in items %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}`;
+    const contractOptions = `{% for contract in contracts %}<option value="{{ contract.id }}">{{ contract.provider_name }}</option>{% endfor %}`;
+    
+    function addItem() {
+        const container = document.getElementById('items-container');
+        container.insertAdjacentHTML('beforeend', `
+            <div class="box" data-item-index="${itemIndex}">
+                <div class="field">
+                    <label class="label">{% trans 'Item' %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="item-${itemIndex}-item" onchange="handleItemChange(this)">
+                            <option value="">---------</option>
+                            ${itemOptions}
+                        </select>
+                    </div>
+                </div>
+                <div class="field">
+                    <input class="input my-1" type="text" name="item-${itemIndex}-other_text"
+                        placeholder="${placeholders.otherDescription}" style="display:none;">
+                </div>
+                <div class="field contract-only" style="display:none;">
+                    <label class="label">{% trans 'Contract' %}</label>
+                    <div class="select is-fullwidth">
+                        <select name="item-${itemIndex}-contract">
+                            <option value="">---------</option>
+                            ${contractOptions}
+                        </select>
+                    </div>
+                </div>
+                <input class="input my-1" type="number" name="item-${itemIndex}-value"
+                    placeholder="${placeholders.value}">
+                <div class="field contract-only" style="display:none;">
+                    <input class="input my-1" type="number" name="item-${itemIndex}-taxes"
+                        placeholder="${placeholders.taxes}">
+                </div>
+                <div class="field contract-only" style="display:none;">
+                    <input class="input my-1" type="number" name="item-${itemIndex}-hanged_value"
+                        placeholder="${placeholders.hangedValue}">
+                </div>
+                <div class="field contract-only" style="display:none;">
+                    <input class="input my-1" type="number" name="item-${itemIndex}-amount_due"
+                        placeholder="${placeholders.amountDue}">
+                </div>
+                <input class="input my-1" type="text" name="item-${itemIndex}-receipt_number"
+                    placeholder="${placeholders.receiptNumber}">
+                <input class="input my-1" type="date" name="item-${itemIndex}-on_date"
+                    placeholder="${placeholders.date}">
+                <input class="input my-1" type="file" name="item-${itemIndex}-receipt_file">
+            </div>
+        `);
+        itemIndex++;
+    }
+
+    
+    function handleItemChange(selectElement) {
+        const container = selectElement.closest('.box');
+        const selectedText = selectElement.options[selectElement.selectedIndex].textContent.trim();
+        
+        const otherTextInput = container.querySelector(`[name$="-other_text"]`);
+        const contractOnlyFields = container.querySelectorAll('.contract-only');
+        
+        if (selectedText === "أخري") {
+            otherTextInput.style.display = "block";
+            otherTextInput.required = true;
+        } else {
+            otherTextInput.style.display = "none";
+            otherTextInput.required = false;
+            otherTextInput.value = "";
+        }
+        
+        const isContract = selectedText === "تعاقدات";
+        contractOnlyFields.forEach(field => {
+            const input = field.querySelector('input, select');
+            field.style.display = isContract ? 'block' : 'none';
+            if (!isContract && input) input.value = '';
+        });
+
+        checkIfContractSelected();
+    }
+
+    // function checkIfContractSelected() {
+    //     let isContractSelected = false;
+    //     document.querySelectorAll('[name$="-item"]').forEach(select => {
+    //         const selectedText = select.options[select.selectedIndex]?.textContent.trim();
+    //         if (selectedText === "تعاقدات") {
+    //             isContractSelected = true;
+    //         }
+    //     });
+
+    //     const locationFields = ['#citySelect', '#regionSelect', '#districtSelect', '#townSelect', '#neighborhoodSelect'];
+    //     locationFields.forEach(selector => {
+    //         const field = document.querySelector(selector).closest('.column');
+    //         if (field) {
+    //             field.style.display = isContractSelected ? 'none' : '';
+    //         }
+    //     });
+    // }
+    function checkIfContractSelected() {
+        let isContractSelected = false;
+        document.querySelectorAll('[name$="-item"]').forEach(select => {
+            const selectedText = select.options[select.selectedIndex]?.textContent.trim();
+            if (selectedText === "تعاقدات") {
+                isContractSelected = true;
+            }
+        });
+
+        // Hide/Show location fields
+        const locationFields = ['#citySelect', '#regionSelect', '#districtSelect', '#townSelect', '#neighborhoodSelect'];
+        locationFields.forEach(selector => {
+            const field = document.querySelector(selector)?.closest('.column');
+            if (field) {
+                field.style.display = isContractSelected ? 'none' : '';
+            }
+        });
+
+        // Disable or enable the "Add Item" button
+        const addItemButton = document.getElementById('addItemButton');
+        if (isContractSelected) {
+            addItemButton.disabled = true;
+            addItemButton.classList.add('is-disabled');
+        } else {
+            addItemButton.disabled = false;
+            addItemButton.classList.remove('is-disabled');
+        }
+    }
+
+    
+    function getData(url, callback) {
+        fetch(url).then(res => res.json()).then(callback);
+    }
+    
+    $('#citySelect').change(function () {
+        const cityId = $(this).val();
+        $('#regionSelect').empty(); $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
+        if (cityId) {
+            getData(`/hygienebox/regions/?city_id=${cityId}`, data => {
+                $('#regionSelect').append('<option value="">{% trans "Select Region" %}</option>');
+                data.forEach(region => $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`));
+            });
+        }
+    });
+    
+    $('#regionSelect').change(function () {
+        const regionId = $(this).val();
+        $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
+        if (regionId) {
+            getData(`/hygienebox/districts/?region_id=${regionId}`, data => {
+                data.forEach(d => $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`));
+            });
+        }
+    });
+    
+    $('#districtSelect').change(function () {
+        const ids = $(this).val();
+        $('#townSelect').empty(); $('#neighborhoodSelect').empty();
+        if (ids) {
+            getData(`/hygienebox/towns/?district_ids=${ids.join(',')}`, data => {
+                data.forEach(t => $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`));
+            });
+        }
+    });
+    
+    $('#townSelect').change(function () {
+        const ids = $(this).val();
+        $('#neighborhoodSelect').empty();
+        if (ids) {
+            getData(`/hygienebox/neighborhoods/?town_ids=${ids.join(',')}`, data => {
+                data.forEach(n => $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`));
+            });
+        }
+    });
+    
+    document.getElementById('expenseForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData();
+        formData.append('city', $('#citySelect').val() || '');
+        formData.append('region', $('#regionSelect').val() || '');
+
+        // Add districts, towns, neighborhoods
+        ($('#districtSelect').val() || []).forEach(val => formData.append('districts', val));
+        ($('#townSelect').val() || []).forEach(val => formData.append('towns', val));
+        ($('#neighborhoodSelect').val() || []).forEach(val => formData.append('neighborhoods', val));
+
+        // Build expense items array
+        const expenseItems = [];
+        
+        for (let i = 0; i < itemIndex; i++) {
+            const itemContainer = $(`[data-item-index="${i}"]`);
+            if (itemContainer.length === 0) continue;
+
+            const itemData = {
+                item: itemContainer.find(`[name="item-${i}-item"]`).val(),
+                value: itemContainer.find(`[name="item-${i}-value"]`).val(),
+                receipt_number: itemContainer.find(`[name="item-${i}-receipt_number"]`).val(),
+                on_date: itemContainer.find(`[name="item-${i}-on_date"]`).val()
+            };
+
+            // Optional fields
+            const otherText = itemContainer.find(`[name="item-${i}-other_text"]`).val();
+            if (otherText) itemData.other_text = otherText;
+
+            const contract = itemContainer.find(`[name="item-${i}-contract"]`).val();
+            if (contract) itemData.contract = contract;
+
+            const taxes = itemContainer.find(`[name="item-${i}-taxes"]`).val();
+            if (taxes) itemData.taxes = taxes;
+
+            const hangedValue = itemContainer.find(`[name="item-${i}-hanged_value"]`).val();
+            if (hangedValue) itemData.hanged_value = hangedValue;
+
+            const amountDue = itemContainer.find(`[name="item-${i}-amount_due"]`).val();
+            if (amountDue) itemData.amount_due = amountDue;
+
+            // Handle file upload
+            const fileInput = itemContainer.find(`[name="item-${i}-receipt_file"]`)[0];
+            if (fileInput && fileInput.files.length > 0) {
+                const fileKey = `receipt_file_${i}`;
+                formData.append(fileKey, fileInput.files[0]);
+                itemData.receipt_file = fileKey;
+            }
+
+            expenseItems.push(itemData);
+        }
+
+        // Add expense items as JSON string
+        formData.append('expense_items', JSON.stringify(expenseItems));
+
+        // Debug: Show what's being sent
+        console.log('Submitting expense items:', expenseItems);
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
+
+        fetch('/hygienebox/create/expense/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Server error');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.message || 'Expense created successfully');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+        });
+    });
+</script>
+    
+{% endblock %}

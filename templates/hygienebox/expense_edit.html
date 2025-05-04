@@ -1,26 +1,104 @@
 {% extends 'base.html' %}
 {% load i18n %}
 {% load humanize %}
-{% block content %}
 
+{% block content %}
 <div class="box">
     <div class="is-flex is-justify-content-space-between is-align-items-center">
         <p class="has-text-link is-size-4 has-text-weight-semibold mb-4">{% trans 'Edit Expense' %}</p>
     </div>
-    <form method="post">
+
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" id="selected_neighborhood" value="{{ expense_form.neighborhood.value }}">
 
         <!-- Main expense Form -->
-        <div class="field">
-            <label class="label">{% trans 'Expense Details' %} "{{pk}}"</label>
+        <p class="title is-4 mb-3">{% trans 'Expense Information' %}</p>
+        <div class="box">
             <div class="columns is-multiline">
-                {% for field in expense_form %}
+                
+                <!-- City -->
                 <div class="column is-half">
                     <div class="field">
-                        <label class="label">{{ field.label }}</label>
+                        <label class="label">{{ expense_form.city.label }}</label>
+                        <div class="control">
+                            <div class="select is-fullwidth">
+                                {{ expense_form.city }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Region -->
+                <div class="column is-half">
+                    <div class="field">
+                        <label class="label">{{ expense_form.region.label }}</label>
+                        <div class="control">
+                            <div class="select is-fullwidth">
+                                {{ expense_form.region }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Districts -->
+                <div class="column is-full">
+                    <div class="field">
+                        <label class="label">{{ expense_form.districts.label }}</label>
+                        <div class="control">
+                            {{ expense_form.districts }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Towns -->
+                <div class="column is-full">
+                    <div class="field">
+                        <label class="label">{{ expense_form.towns.label }}</label>
+                        <div class="control">
+                            {{ expense_form.towns }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Neighborhoods -->
+                <div class="column is-full">
+                    <div class="field">
+                        <label class="label">{{ expense_form.neighborhood.label }}</label>
+                        <div class="control">
+                            {{ expense_form.neighborhood }}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+
+        <!-- Expense Items Formset -->
+        <p class="title is-4 mt-5 mb-3">{% trans 'Items' %}</p>
+        {{ items_formset.management_form }}
+
+        <div>
+            {% for form in items_formset %}
+            <div class="box mb-5" style="background-color: {% cycle '#f9f9f9' '#eef6fb' %};">
+                {{ form.id }}
+                {% for field in form.visible_fields %}
+                    {% if field.name != 'DELETE' %}
+                    <div class="field mb-4">
+                        <label class="label has-text-weight-semibold" style="text-align: start;">{{ field.label }}</label>
                         <div class="control">
                             {{ field }}
+                            
+                            {# Special case for showing existing receipt file #}
+                            {% if field.name == "receipt_file" and form.instance.receipt_file %}
+                                <p class="mt-2">
+                                    <a href="{{ form.instance.receipt_file.url }}" target="_blank" class="button is-small is-link">
+                                        {% trans "View current receipt" %}
+                                    </a>
+                                </p>
+                            {% endif %}
                         </div>
                         {% if field.help_text %}
                         <p class="help">{{ field.help_text }}</p>
@@ -29,46 +107,20 @@
                         <p class="help is-danger">{{ field.errors }}</p>
                         {% endif %}
                     </div>
-                </div>
+                    {% endif %}
                 {% endfor %}
+
+                {% if form.instance.pk %}
+                    <div class="field mt-3">
+                        <label class="checkbox">
+                            {{ form.DELETE }} {% trans "Delete" %}
+                        </label>
+                    </div>
+                {% endif %}
             </div>
+            {% endfor %}
         </div>
 
-
-        <!-- Expense Items Formset -->
-        <label class="label mt-4">{% trans 'Items' %}</label>
-        {{ items_formset.management_form }}
-
-        <div class="table-container">
-            <table class="table is-fullwidth is-striped is-hoverable">
-                <thead>
-                    <tr>
-                        <th>{% trans 'Item Name' %}</th>
-                        <th>{% trans 'Description' %}</th>
-                        <th>{% trans 'Amount' %}</th>
-                        <th>{% trans 'From' %}</th>
-                        <th>{% trans 'Actions' %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for form in items_formset %}
-                    <tr>
-                        {{ form.id }}
-                        <td>{{ form.item }}</td>
-                        <td>{{ form.other_title }}</td>
-                        <td>{{ form.value }}</td>
-                        <td>{{ form.from_date }}</td>
-                        <td>
-                            <button type="button" class="button is-danger is-small"
-                                onclick="this.closest('tr').remove()">
-                                {% trans 'Delete' %}
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
 
         <!-- Save Button -->
         <div class="mt-4 has-text-centered">
@@ -77,17 +129,16 @@
             </button>
         </div>
     </form>
-
 </div>
 {% endblock content %}
+
 {% block javascript %}
 <script>
-    document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {
     const siteSelect = document.getElementById("id_exp-site");
     const neighborhoodSelect = document.getElementById("id_exp-neighborhood");
     const selectedNeighborhood = document.getElementById("selected_neighborhood").value;
 
-    // Load neighborhoods dynamically
     async function loadNeighborhoods(siteId, preselectedNeighborhood = null) {
         try {
             const response = await fetch(`/hygienebox/neighborhoods?area_id=${siteId}`);
@@ -96,19 +147,14 @@
             const data = await response.json();
             console.log("Loaded neighborhoods:", data);
 
-            // Reset dropdown
             neighborhoodSelect.innerHTML = '<option value="">---------</option>';
-
             data.forEach((n) => {
                 const option = document.createElement("option");
                 option.value = n.id;
                 option.textContent = n.name;
-
-                // Preselect the neighborhood if it's already set
                 if (n.id == preselectedNeighborhood) {
                     option.selected = true;
                 }
-
                 neighborhoodSelect.appendChild(option);
             });
         } catch (error) {
@@ -116,16 +162,13 @@
         }
     }
 
-    // Load neighborhoods when site changes
-    siteSelect.addEventListener("change", (e) => {
+    siteSelect?.addEventListener("change", (e) => {
         loadNeighborhoods(e.target.value);
     });
 
-    // On form load (edit or error reload), trigger dropdown with preselected neighborhood
-    if (siteSelect.value) {
+    if (siteSelect && siteSelect.value) {
         loadNeighborhoods(siteSelect.value, selectedNeighborhood);
     }
 });
-
 </script>
 {% endblock %}

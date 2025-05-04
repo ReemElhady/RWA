@@ -5,7 +5,7 @@
 {% block content %}
 <div>
     <div class="columns">
-        <!-- ✅ Revenue Box -->
+        <!-- ✅ Revenues Box -->
         <div class="column">
             <div class="box is-flex is-justify-content-space-between">
                 <img src="{% static 'img/R.png' %}" height="50px" width="50px">
@@ -16,7 +16,7 @@
             </div>
         </div>
 
-        <!-- ✅ Expense Box -->
+        <!-- ✅ Expenses Box -->
         <div class="column">
             <div class="box is-flex is-justify-content-space-between">
                 <img src="{% static 'img/E.png' %}" height="50px" width="50px">
@@ -27,61 +27,178 @@
             </div>
         </div>
 
-        <!-- ✅ Placeholder "Other" Box -->
+        <!-- ✅ Contracts Box -->
         <div class="column">
             <div class="box is-flex is-justify-content-space-between">
                 <img src="{% static 'img/E.png' %}" height="50px" width="50px">
                 <div class="is-flex-direction-column">
-                    <h4 class="is-family-secondary">Other</h4>
-                    <h1 class="has-text-weight-bold is-family-sans-serif">0</h1>
+                    <h4 class="is-family-secondary">{% trans 'Contracts' %}</h4>
+                    <h1 class="has-text-weight-bold">{{ total_contract|intcomma }} {% trans 'EGP' %}</h1>
                 </div>
             </div>
         </div>
     </div>
-
+        
     <!-- ✅ Expense & Revenue Charts -->
-    <div class="box has-background-white">
-        <canvas id="total_rev_exp" width="" height="450"></canvas>
+    <div class="columns">
+        <!-- Pie Chart -->
+        <div class="column is-one-third">
+            <div class="box has-background-white">
+                <canvas id="total_rev_exp" height="450"></canvas>
+            </div>
+        </div>
+    
+        <!-- Line Chart -->
+        <div class="column is-two-thirds">
+            <div class="box has-background-white">
+                <canvas id="monthly_rev_exp" height="450"></canvas>
+            </div>
+        </div>
     </div>
+    
+    <!-- Date filtrations -->
+    <div class="box has-background-white mb-4">
+        <form method="get">
+            <div class="columns">
+                <div class="column">
+                    <label class="label">{% trans "From Date" %}</label>
+                    <input type="date" name="from_date" class="input" value="{{ from_date|default:'' }}">
+                </div>
+                <div class="column">
+                    <label class="label">{% trans "To Date" %}</label>
+                    <input type="date" name="to_date" class="input" value="{{ to_date|default:'' }}">
+                </div>
+                <div class="column is-flex is-align-items-end">
+                    <button class="button is-info" type="submit">{% trans "Apply Filter" %}</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="box has-background-white">
+        <canvas id="region_rev_exp" width="" height="450"></canvas>
+    </div>
+    
+
+    
 </div>
 {% endblock content %}
 
 {% block javascript %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    // ✅ Revenue and Expense Chart with Different Colors
+    const chartLabels = {
+        revenue: "{{ _('Revenues')|escapejs }}",
+        expense: "{{ _('Expenses')|escapejs }}",
+        totalRevenue: "{{ _('Total Revenues')|escapejs }}",
+        totalExpense: "{{ _('Total Expenses')|escapejs }}",
+        revExp: "{{ _('Revenues and Expenses')|escapejs }}",
+        revenueByRegion: "{{ _('Revenues by Region')|escapejs }}",
+        expenseByRegion: "{{ _('Expenses by Region')|escapejs }}"
+    };
     const ctxExpense = document.getElementById('total_rev_exp').getContext('2d');
     const expenseChart = new Chart(ctxExpense, {
-        type: 'bar',
+        type: 'pie',   // 👉 Change this from 'bar' to 'pie'
         data: {
-            labels: ['إجمالى الإيرادات', 'إجمالى المصروفات'],
+            labels: ['إجمالى الإيرادات', 'إجمالى المصروفات'], 
             datasets: [{
-                label: 'Revenues',
-                data: [{{ total_revenue }}, 0],
-                backgroundColor: 'rgba(75, 192, 192, 0.7)',  // Greenish-blue for revenue
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
-            },
-            {
-                label: 'Expenses',
-                data: [0, {{ total_expense }}],
-                backgroundColor: 'rgba(255, 99, 132, 0.7)',  // Red for expenses
-                borderColor: 'rgba(255, 99, 132, 1)',
+                label: chartLabels.revExp,
+                data: [{{ total_revenue }}, {{ total_expense }}],  // Just put the two values directly
+                backgroundColor: [
+                    'rgba(75, 192, 192, 0.7)',   // Revenues color
+                    'rgba(255, 99, 132, 0.7)'    // Expenses color
+                ],
+                borderColor: [
+                    'rgba(75, 192, 192, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
                 borderWidth: 1
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
-                legend: { position: 'top' },
-            },
-            scales: {
-                y: { beginAtZero: true }
+            plugins: {
+                legend: { position: 'top' }
             }
         }
     });
-</script>
+    const ctxMonthly = document.getElementById('monthly_rev_exp').getContext('2d');
+    const monthlyChart = new Chart(ctxMonthly, {
+        type: 'line',
+        data: {
+            labels: {{ months|safe }},
+            datasets: [
+                {
+                    label: chartLabels.revenue,
+                    data: {{ revenue_monthly_totals|safe }},
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    tension: 0.4
+                },
+                {
+                    label: chartLabels.expense,
+                    data: {{ expense_monthly_totals|safe }},
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: {
+                    reverse: true  // flip x-axis for RTL
+                },
+                y: {
+                    position: 'right'  // move y-axis to the right
+                }
+            }
+        }
+    }); 
+    const ctxRegionCombined = document.getElementById('region_rev_exp').getContext('2d');
+    const regionCombinedChart = new Chart(ctxRegionCombined, {
+    type: 'bar',
+    data: {
+        labels: {{ region_names|safe }},
+        datasets: [
+            {
+                label: chartLabels.revenue,
+                data: {{ region_revenues|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            },
+            {
+                label: chartLabels.expense,
+                data: {{ region_expenses|safe }},
+                backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 1
+            }
+        ]
+    },
+    options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: {
+                    reverse: true  // flip x-axis for RTL
+                },
+                y: {
+                    position: 'right'  // move y-axis to the right
+                }
+            }
+        }
+});
 
+</script>
 {% endblock javascript %}

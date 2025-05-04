@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+<div class="box p-5">
+    <h1 class="title is-4 has-text-link mb-5">
+        <i class="fas fa-file-signature mr-2"></i> {% trans 'New Contract' %}
+    </h1>
+
+    <form id="contractForm" class="form">
+        <div class="columns is-multiline">
+
+            <div class="column is-6">
+                <label class="label">{% trans "Provider Name" %}</label>
+                <div class="control">
+                    <input class="input" type="text" name="provider_name" placeholder="{% trans 'Enter provider name' %}" required>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "City" %}</label>
+                <div class="control">
+                    <div class="select is-fullwidth">
+                        <select name="city" id="citySelect">
+                            <option value="">{% trans "Select City" %}</option>
+                            {% for city in cities %}
+                                <option value="{{ city.id }}">{{ city.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Region" %}</label>
+                <div class="control">
+                    <div class="select is-fullwidth">
+                        <select name="region" id="regionSelect"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Districts" %}</label>
+                <div class="control">
+                    <div class="select is-multiple is-fullwidth">
+                        <select multiple name="districts" id="districtSelect"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Towns" %}</label>
+                <div class="control">
+                    <div class="select is-multiple is-fullwidth">
+                        <select multiple name="towns" id="townSelect"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Neighborhoods" %}</label>
+                <div class="control">
+                    <div class="select is-multiple is-fullwidth">
+                        <select multiple name="neighborhoods" id="neighborhoodSelect"></select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="column is-6">
+                <label class="label">{% trans "Value (EGP)" %}</label>
+                <div class="control">
+                    <input class="input" type="number" name="value" placeholder="e.g., 50000" required>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Duration (months)" %}</label>
+                <div class="control">
+                    <input class="input" type="number" name="duration" value="12" required>
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Contract Date" %}</label>
+                <div class="control">
+                    <input class="input" type="date" name="contract_date">
+                </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Commencing Date" %}</label>
+                <div class="control">
+                    <input class="input" type="date" name="commencing_date" required>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="has-text-centered mt-5">
+            <button class="button is-link is-medium is-rounded px-6" type="submit">
+                <i class="fas fa-check"></i> &nbsp;{% trans 'Save' %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block javascript %}
+{{ block.super }}
+<script>
+    const getData = (url, callback) => {
+        $.get(url, callback);
+    };
+
+    $('#citySelect').change(function () {
+        let cityId = $(this).val();
+        $('#regionSelect').empty();
+        $('#districtSelect').empty();
+        $('#townSelect').empty();
+        $('#neighborhoodSelect').empty();
+        if (cityId) {
+            getData(`/hygienebox/regions/?city_id=${cityId}`, function (data) {
+                $('#regionSelect').append('<option value="">{% trans "Select Region" %}</option>');
+                data.forEach(region => {
+                    $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
+                });
+            });
+        }
+    });
+
+    $('#regionSelect').change(function () {
+        let regionId = $(this).val();
+        $('#districtSelect').empty();
+        $('#townSelect').empty();
+        $('#neighborhoodSelect').empty();
+        if (regionId) {
+            getData(`/hygienebox/districts/?region_id=${regionId}`, function (data) {
+                data.forEach(d => $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`));
+            });
+        }
+    });
+
+    $('#districtSelect').change(function () {
+        let districtIds = $(this).val();
+        $('#townSelect').empty();
+        $('#neighborhoodSelect').empty();
+        if (districtIds) {
+            getData(`/hygienebox/towns/?district_ids=${districtIds.join(',')}`, function (data) {
+                data.forEach(t => $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`));
+            });
+        }
+    });
+
+    $('#townSelect').change(function () {
+        let townIds = $(this).val();
+        $('#neighborhoodSelect').empty();
+        if (townIds) {
+            getData(`/hygienebox/neighborhoods/?town_ids=${townIds.join(',')}`, function (data) {
+                data.forEach(n => $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`));
+            });
+        }
+    });
+
+    $('#contractForm').submit(function (e) {
+        e.preventDefault();
+        const formData = {
+            provider_name: $('input[name=provider_name]').val(),
+            value: $('input[name=value]').val(),
+            duration: $('input[name=duration]').val(),
+            contract_date: $('input[name=contract_date]').val(),
+            commencing_date: $('input[name=commencing_date]').val(),
+            city: $('#citySelect').val(),
+            region: $('#regionSelect').val(),
+            districts: $('#districtSelect').val(),
+            towns: $('#townSelect').val(),
+            neighborhoods: $('#neighborhoodSelect').val(),
+        };
+
+        fetch('/hygienebox/contracts/create/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                alert(data.message || 'Contract created!');
+            }
+            })
+
+        .catch(err => alert('Error: ' + err));
+    });
+</script>
+{% endblock %}

@@ -1,126 +1,45 @@
 {% extends 'base.html' %}
 {% load i18n %}
+
 {% block content %}
-<div class="box">
-    <p class="has-text-link is-size-5 mb-3">{% trans 'New Expense' %}</p>
-    <form method="post">
+<div class="box p-5">
+    <!-- Title with Bulma styling -->
+    <p class="has-text-link is-size-4 has-text-weight-bold mb-4">{% trans 'New Expense' %}</p>
+
+    <!-- Form setup -->
+    <form method="post" class="mb-3">
         {% csrf_token %}
 
-        <!-- Display non-field errors -->
-        {% if expense_form.non_field_errors or formset.non_form_errors %}
-        <div class="notification is-danger has-text-white">
-            {% for error in expense_form.non_field_errors %}{{ error }}{% endfor %}
-            {% for error in formset.non_form_errors %}{{ error }}{% endfor %}
-        </div>
-        {% endif %}
+        <!-- Loop through all fields in the form -->
+        {% for field in form %}
+        <div class="field">
+            <!-- Label with styling -->
+            <label class="label has-text-weight-semibold">{{ field.label }}</label>
 
-        <!-- Site & Neighborhood in the same line -->
-        <div class="field is-horizontal">
-            <div class="field-body">
-                <div class="field">
-                    <label class="label">{% trans 'Site' %}</label>
-                    <div class="select is-fullwidth">
-                        {{ expense_form.site }}
-                    </div>
-                    {% if expense_form.site.errors %}
-                    <p class="help is-danger">{{ expense_form.site.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <div class="field">
-                    <label class="label">{% trans 'Neighborhood' %}</label>
-                    <div class="select is-fullwidth">
-                        {{ expense_form.neighborhood }}
-                    </div>
-                    {% if expense_form.neighborhood.errors %}
-                    <p class="help is-danger">{{ expense_form.neighborhood.errors.0 }}</p>
-                    {% endif %}
-                </div>
+            <!-- Field control -->
+            <div class="control">
+                {{ field }}
             </div>
+
+            <!-- Errors -->
+            {% if field.errors %}
+            <p class="help is-danger">{{ field.errors }}</p>
+            {% endif %}
         </div>
+        {% endfor %}
 
-        <!-- Item, Amount, Description, From, To in the same line -->
-        <div id="item-container" style="overflow: auto;max-height: 245px;">
-            {{ formset.management_form }}
-            {% for form in formset %}
-            <fieldset class="item">
-                <div class="field is-horizontal">
-                    <div class="field-body is-align-items-self-end">
-                        <div class="field">
-                            <label class="label">{% trans 'Item' %}</label>
-                            <div class="select is-fullwidth">
-                                {{ form.item }}
-                            </div>
-                            {% if form.item.errors %}
-                            <p class="help is-danger">{{ form.item.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div class="field">
-                            <label class="label">{% trans 'Description' %}</label>
-                            <div class="control">
-                                {{ form.other_title }}
-                            </div>
-                            {% if form.other_title.errors %}
-                            <p class="help is-danger">{{ form.other_title.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-                        <div class="field">
-                            <label class="label">{% trans 'Contract' %}</label>
-                            <div class="control">
-                                {{ form.contract }}
-                            </div>
-                            {% if form.contract.errors %}
-                            <p class="help is-danger">{{ form.contract.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div class="field">
-                            <label class="label">{% trans 'Amount' %}</label>
-                            <div class="control">
-                                {{ form.value }}
-                            </div>
-                            {% if form.value.errors %}
-                            <p class="help is-danger">{{ form.value.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <div class="field">
-                            <label class="label">{% trans 'From' %}</label>
-                            <div class="control">
-                                {{ form.from_date }}
-                            </div>
-                            {% if form.from_date.errors %}
-                            <p class="help is-danger">{{ form.from_date.errors.0 }}</p>
-                            {% endif %}
-                        </div>
-
-                        <!-- Delete checkbox for formset -->
-                        <div class="field">
-                            <label class="checkbox mt-5">
-                                {{ form.DELETE }} {% trans 'Delete' %}
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </fieldset>
-            {% endfor %}
-        </div>
-
-        <!-- Add Item button -->
-        <div class="control my-4 has-text-right">
-            <button type="button" class="button is-info is-small ml-2" id="add-item">{% trans 'Add Item' %}</button>
-        </div>
-
-        <!-- Submit button -->
+        <!-- ✅ Submit button -->
         <div class="control my-4 has-text-centered">
-            <button class="button is-link is-medium is-rounded px-6" type="submit">{% trans 'Save' %}</button>
+            <button class="button is-link is-medium is-rounded px-6" type="submit">
+                <i class="fas fa-check"></i> &nbsp;{% trans 'Save' %}
+            </button>
         </div>
     </form>
 </div>
 
+{% endblock %}
+{% block javascript %}
 <script>
- document.addEventListener('DOMContentLoaded', () => {
     // load data from server
     async function load_negiborhoods(id) {
         fetch(`/hygienebox/neighborhoods?area_id=${id}`)
@@ -133,8 +52,8 @@
             .then(data => {
                 console.log('neigborhoods:', data);
 
-                const neighborhoodDropdown = document.getElementById('id_exp-neighborhood');
-                neighborhoodDropdown.innerHTML = '<option value="">---------</option>'; // Reset dropdown
+                const neighborhoodDropdown = document.getElementById('id_neighborhood');
+                neighborhoodDropdown.innerHTML = '<option value="" selected>---------</option>'; // Reset dropdown
 
                 data.forEach(n => {
                     const option = document.createElement('option');
@@ -145,64 +64,9 @@
             })
             .catch(error => console.error('Error loading neighborhoods:', error));
     }
-    document.getElementById('id_exp-site').addEventListener('change', (e) => {
+    document.getElementById('id_site').addEventListener('change', (e) => {
         load_negiborhoods(e.target.value);
     })
-
-    // Function to handle select change and show/hide other_title field
-    function handleItemChange(selectElement) {
-    const rowNumber = selectElement.id.match(/\d+/)[0]; // Extract row number from id
-    const otherField = document.getElementById(`id_exp_item-${rowNumber}-other_title`).closest('.field');
-    const contractField = document.getElementById(`id_exp_item-${rowNumber}-contract`).closest('.field');
-    const selectedOption = selectElement.options[selectElement.selectedIndex].text;
-
-    console.log(`Selected option: ${selectedOption}`);
-
-    if (selectedOption === "أخري") {  // Show if "أخري" is selected
-        otherField.style.display = "block";
-        otherField.setAttribute("required", "required"); // Ensure field is required when shown
-        
-    } else {
-        otherField.style.display = "none";
-        otherField.removeAttribute("required"); // Remove required when hidden
-        otherField.value = ""; // Clear field value when hidden
-    }
-    if(selectedOption === "تعاقدات"){
-        contractField.style.display='block';
-        contractField.setAttribute('required');
-    }else {
-        contractField.style.display = "none";
-        contractField.removeAttribute("required"); // Remove required when hidden
-        contractField.value = ""; // Clear field value when hidden
-    }
-
-}
-
-    // Apply to all existing rows
-    document.querySelectorAll('select[id^="id_exp_item-"][id$="-item"]').forEach(select => {
-        select.addEventListener('change', () => handleItemChange(select));
-        handleItemChange(select); // Initialize visibility on page load
-    });
-
-    // Handle dynamic rows
-    const itemContainer = document.getElementById('item-container');
-    const totalForms = document.querySelector('#id_exp_item-TOTAL_FORMS');
-
-    // Add new row functionality
-    document.getElementById('add-item').addEventListener('click', () => {
-        const formIdx = Number(totalForms.value);
-        const newFormHtml = itemContainer.querySelector('.item').outerHTML.replace(/exp_item-\d+/g, `exp_item-${formIdx}`);
-        itemContainer.insertAdjacentHTML('beforeend', newFormHtml);
-
-        totalForms.value = formIdx + 1;
-
-        // Set up event listener for the new row
-        const newSelect = document.querySelector(`#id_exp_item-${formIdx}-item`);
-        newSelect.addEventListener('change', () => handleItemChange(newSelect));
-        handleItemChange(newSelect); // Initialize new row
-    });
-});
-
 </script>
 
-{% endblock %}
+{% endblock javascript %}

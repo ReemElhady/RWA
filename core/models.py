@@ -8,16 +8,35 @@ class City(models.Model):
     def __str__(self):
         return self.name
 
-class Area(models.Model):
-    # Area == Site
-    city = models.ForeignKey(City , on_delete=models.CASCADE,verbose_name=_('City'), related_name='areas')
-    name = models.CharField(max_length=254, verbose_name=_('Area'))
+# Region Model (formerly Marqas)
+class Region(models.Model):
+    country = models.ForeignKey(City, related_name='regions', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100,verbose_name=_('Region'))
+    
     def __str__(self):
         return self.name
 
-class Neighborhood(models.Model):
-    city = models.ForeignKey(City, on_delete=models.CASCADE,verbose_name=_('City') ,related_name='neighborhood')
-    area = models.ForeignKey(Area, on_delete=models.CASCADE,verbose_name=_('Area') ,related_name='neighborhood')
-    name = models.CharField(max_length=254, verbose_name=_('Village'))
+# District Model (formerly Wahadat Mahalaya)
+class District(models.Model):
+    region = models.ForeignKey(Region, related_name='districts', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100,verbose_name=_('District'))
+    
     def __str__(self):
         return self.name
+
+# Town Model (formerly Qura)
+class Town(models.Model):
+    district = models.ForeignKey(District, related_name='towns', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100,verbose_name=_('Town'))
+    
+    def __str__(self):
+        return self.name
+
+# Neighborhood Model (formerly Izb/Kufur)
+class Neighborhood(models.Model):
+    town = models.ForeignKey(Town, related_name='neighborhoods', on_delete=models.CASCADE)
+    name = models.CharField(max_length=100,verbose_name=_('Neighborhood'))
+    
+    def __str__(self):
+        return self.name
+    
