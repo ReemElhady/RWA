@@ -8,7 +8,7 @@ from django.db.models import Sum, Value , Q
 from django.db.models.functions import Coalesce
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Expense ,Item , Contract, Revenue, ExpenseItem, RevenueDistribution
+from .models import Expense ,Item , Contract, Revenue, ExpenseItem, RevenueItem
 from .serializers import ContractSerializer, ExpenseSerializer, ExpenseItemSerializer, RevenueSerializer, RevenueItemSerializer
 from .forms import ContractForm, ExpenseForm, ExpenseItemFormSet, RevenueForm, RevenueItemFormSet, ReportForm
 from django.http import JsonResponse
@@ -17,85 +17,107 @@ from rest_framework.renderers import JSONRenderer
 from django.db import transaction
 from rest_framework import parsers
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
+from collections import OrderedDict
 
 @login_required
 @group_required('Admin','Editor','Viewer')
 def dashboard(request):
     total_expense = Expense.objects.aggregate(total=Sum('expense_items__value'))['total'] or 0
-    total_revenue = Revenue.objects.aggregate(total=Sum('revenue_items__value'))['total'] or 0
+    total_revenue = RevenueItem.objects.aggregate(total=Sum('value'))['total'] or 0
     total_contract = Contract.objects.aggregate(total=Sum('value'))['total'] or 0
     report_form = ReportForm(request.GET or None)
 
-    current_year = datetime.today().year
+    from_date_str = request.GET.get('from_date')
+    to_date_str = request.GET.get('to_date')
 
-    months = []
-    revenue_monthly_totals = []
-    expense_monthly_totals = []
+    today = datetime.today()
+    current_year = today.year
 
-    # Filters (for new graphs)
-    from_date = request.GET.get('from_date')
-    to_date = request.GET.get('to_date')
+    if from_date_str and to_date_str:
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d")
+        to_date = datetime.strptime(to_date_str, "%Y-%m-%d")
+    else:
+        from_date = datetime(current_year, 1, 1)
+        to_date = datetime(current_year, 12, 31)
 
-    date_filter_revenue = Q()
-    date_filter_expense = Q()
+    # Filters
+    date_filter_revenue = Q(from_date__range=(from_date, to_date))
+    date_filter_expense = Q(on_date__range=(from_date, to_date))
 
-    if from_date and to_date:
-        date_filter_revenue = Q(month__range=(from_date, to_date))
-        date_filter_expense = Q(on_date__range=(from_date, to_date))
-    elif from_date:
-        date_filter_revenue = Q(month__gte=from_date)
-        date_filter_expense = Q(on_date__gte=from_date)
-    elif to_date:
-        date_filter_revenue = Q(month__lte=to_date)
-        date_filter_expense = Q(on_date__lte=to_date)
-
-    # Regions Revenues and Expenses
+    # Region charts
     region_revenues = []
     region_expenses = []
     region_names = []
 
     for region in Region.objects.all():
-        # Revenues
-        rev_total = RevenueDistribution.objects.filter(
-            revenue_item__revenue__region=region
-        ).filter(date_filter_revenue).aggregate(total=Sum('amount'))['total'] or 0
-        
-        # Expenses
+        rev_total = RevenueItem.objects.filter(
+            revenue__region=region
+        ).filter(date_filter_revenue).aggregate(total=Sum('value'))['total'] or 0
+
         exp_total = ExpenseItem.objects.filter(
-            expense__region=region
+            expense__regions=region 
         ).filter(date_filter_expense).aggregate(total=Sum('value'))['total'] or 0
-        
+
         region_names.append(region.name)
         region_revenues.append(rev_total)
         region_expenses.append(exp_total)
 
-    # Monthly Trends
-    for month in range(1, 13):
-        start_date = datetime(current_year, month, 1)
-        if month == 12:
-            end_date = datetime(current_year + 1, 1, 1)
-        else:
-            end_date = datetime(current_year, month + 1, 1)
 
-        revenue_sum = RevenueDistribution.objects.filter(
-            month__gte=start_date,
-            month__lt=end_date
-        ).aggregate(total=Sum('amount'))['total'] or 0
+    # Determine interval
+    delta_days = (to_date - from_date).days
+    if delta_days <= 31:
+        interval_type = 'daily'
+    elif delta_days <= 366:
+        interval_type = 'monthly'
+    else:
+        interval_type = 'yearly'
 
-        expense_sum = ExpenseItem.objects.filter(
-            on_date__gte=start_date,
-            on_date__lt=end_date
+    # Trend chart
+    labels = []
+    revenue_totals = []
+    expense_totals = []
+
+    current = from_date
+
+    while current <= to_date:
+        if interval_type == 'daily':
+            next_interval = current + timedelta(days=1)
+            label = current.strftime('%d %b')
+        elif interval_type == 'monthly':
+            next_interval = current + relativedelta(months=1)
+            label = current.strftime('%B')
+        else:  # yearly
+            next_interval = current + relativedelta(years=1)
+            label = current.strftime('%Y')
+
+        rev_total = RevenueItem.objects.filter(
+            from_date__gte=current,
+            from_date__lt=next_interval
         ).aggregate(total=Sum('value'))['total'] or 0
 
-        months.append(start_date.strftime('%B'))
-        revenue_monthly_totals.append(revenue_sum)
-        expense_monthly_totals.append(expense_sum)
+        exp_total = ExpenseItem.objects.filter(
+            on_date__gte=current,
+            on_date__lt=next_interval
+        ).aggregate(total=Sum('value'))['total'] or 0
 
+        labels.append(label)
+        revenue_totals.append(rev_total)
+        expense_totals.append(exp_total)
+
+        current = next_interval
+        
+    contract_expense_total = ExpenseItem.objects.filter(
+        contract__isnull=False
+    ).aggregate(total=Sum('value'))['total'] or 0
+
+    non_contract_expense_total = total_expense - contract_expense_total
+    
     context = {
-        'months': months,
-        'revenue_monthly_totals': revenue_monthly_totals,
-        'expense_monthly_totals': expense_monthly_totals,
+        'months': labels,
+        'revenue_monthly_totals': revenue_totals,
+        'expense_monthly_totals': expense_totals,
         'report_form': report_form,
         'total_expense': total_expense,
         'total_revenue': total_revenue,
@@ -103,9 +125,12 @@ def dashboard(request):
         'region_names': region_names,
         'region_revenues': region_revenues,
         'region_expenses': region_expenses,
-        'from_date': from_date,
-        'to_date': to_date
+        'from_date': from_date_str,
+        'to_date': to_date_str,
+        'contract_expense_total': contract_expense_total,
+        'non_contract_expense_total': non_contract_expense_total,
     }
+
     return render(request, 'hygienebox/dashboard.html', context)
 
 #Contracts
@@ -115,9 +140,10 @@ def dashboard(request):
 def create_contract(request):
     if request.method == 'GET':
         return Response({'detail': 'Please submit contract data via POST.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    
+    print("Request Data",request.data )
     serializer = ContractSerializer(data=request.data)
     if serializer.is_valid():
+        print("Validated Data", serializer.validated_data)
         contract = serializer.save() 
         if not contract.created_by:
             contract.created_by = request.user  
@@ -126,7 +152,8 @@ def create_contract(request):
 
         contract.save()  
         return JsonResponse({'message': 'Contract created successfully', 'redirect': '/hygienebox/contracts/'})
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return JsonResponse({'errors': serializer.errors}, status=400)
 
 def contract_form_view(request):
     cities = City.objects.all()
@@ -138,19 +165,34 @@ def get_regions(request):
     return JsonResponse(list(regions), safe=False)
 
 def get_districts(request):
-    region_id = request.GET.get('region_id')
-    districts = District.objects.filter(region_id=region_id).values('id', 'name')
-    return JsonResponse(list(districts), safe=False)
+    region_param = request.GET.get('region_id') or request.GET.get('region_ids')
+    if region_param:
+        region_ids = [int(i) for i in region_param.split(',') if i.isdigit()]
+        districts = District.objects.filter(region_id__in=region_ids).select_related('region')
+        data = [{'id': d.id, 'name': f"{d.name} ({d.region.name})"} for d in districts]
+    else:
+        data = []
+    return JsonResponse(data, safe=False)
 
 def get_towns(request):
-    district_ids = request.GET.get('district_ids', '').split(',')
-    towns = Town.objects.filter(district_id__in=district_ids).values('id', 'name')
-    return JsonResponse(list(towns), safe=False)
+    district_param = request.GET.get('district_id') or request.GET.get('district_ids')
+    if district_param:
+        district_ids = [int(i) for i in district_param.split(',') if i.isdigit()]
+        towns = Town.objects.filter(district_id__in=district_ids).select_related('district')
+        data = [{'id': t.id, 'name': f"{t.name} ({t.district.name})"} for t in towns]
+    else:
+        data = []
+    return JsonResponse(data, safe=False)
 
 def get_neighborhoods(request):
-    town_ids = request.GET.get('town_ids', '').split(',')
-    neighborhoods = Neighborhood.objects.filter(town_id__in=town_ids).values('id', 'name')
-    return JsonResponse(list(neighborhoods), safe=False)
+    town_param = request.GET.get('town_id') or request.GET.get('town_ids')
+    if town_param:
+        town_ids = [int(i) for i in town_param.split(',') if i.isdigit()]
+        neighborhoods = Neighborhood.objects.filter(town_id__in=town_ids).select_related('town')
+        data = [{'id': n.id, 'name': f"{n.name} ({n.town.name})"} for n in neighborhoods]
+    else:
+        data = []
+    return JsonResponse(data, safe=False)
 
 def get_committed_areas(request, contract_id):
     contract = get_object_or_404(Contract, pk=contract_id)
@@ -237,6 +279,36 @@ def delete_contract(request, contract_id):
     contract.delete()
     return redirect('contracts')
 
+def contract_analytics_view(request, contract_id):
+    contract = get_object_or_404(Contract, id=contract_id)
+    expected = contract.expected_payments.all().order_by('payment_date')
+
+    data = OrderedDict()
+
+    for ep in expected:
+        month_key = ep.payment_date.strftime('%Y-%m')  
+        label = ep.payment_date.strftime('%b %Y')   
+
+        actual_paid = ExpenseItem.objects.filter(
+            contract=contract,
+            on_date__year=ep.payment_date.year,
+            on_date__month=ep.payment_date.month
+        ).aggregate(total=Sum('value'))['total'] or 0
+
+        data[label] = {
+            'expected': float(ep.amount),
+            'actual': float(actual_paid)
+        }
+
+    context = {
+        'contract': contract,
+        'chart_labels': list(data.keys()),
+        'expected_values': [v['expected'] for v in data.values()],
+        'actual_values': [v['actual'] for v in data.values()],
+    }
+
+    return render(request, 'hygienebox/contract_analytics.html', context)
+
 #Expenses
 @api_view(['POST'])
 @parser_classes([parsers.MultiPartParser, parsers.FormParser])
@@ -286,19 +358,28 @@ def create_expense(request):
                 # If Contract is selected, pull data from Contract
                 expense_data = {
                     'city': contract_instance.city.id if contract_instance.city else None,
-                    'region': contract_instance.region.id if contract_instance.region else None,
+                    'regions': [contract_instance.region.id] if contract_instance.region else [],
                     'districts': [d.id for d in contract_instance.districts.all()],
                     'towns': [t.id for t in contract_instance.towns.all()],
                     'neighborhoods': [n.id for n in contract_instance.neighborhoods.all()],
+                    'receipt_number': data.get('receipt_number'),
+                    'receipt_date': data.get('receipt_date'),
+                    'receipt_file': request.FILES.get('receipt_file'),
+
                 }
             else:
+                user_city = request.user.profile.city
                 expense_data = {
-                    'city': data.get('city'),
-                    'region': data.get('region'),
+                    'city': user_city.id if user_city else None,
+                    'regions': data.getlist('regions'),
                     'districts': data.getlist('districts'),
                     'towns': data.getlist('towns'),
                     'neighborhoods': data.getlist('neighborhoods'),
+                    'receipt_number': data.get('receipt_number'),
+                    'receipt_date': data.get('receipt_date'),
+                    'receipt_file': request.FILES.get('receipt_file'),
                 }
+
 
             # Create Expense
             expense_serializer = ExpenseSerializer(data=expense_data, context={'request': request})
@@ -310,21 +391,13 @@ def create_expense(request):
             
 
             
-            # Process each expense item
             for idx, item_data in enumerate(expense_items):
-                # Handle file upload if specified
-                file_key = item_data.get('receipt_file')
-                if file_key and file_key in request.FILES:
-                    item_data['receipt_file'] = request.FILES[file_key]
-                
-                # Create expense item
                 item_serializer = ExpenseItemSerializer(data=item_data, context={
                     'request': request,
                     'expense': expense
                 })
                 
                 if not item_serializer.is_valid():
-                    # print(f"Expense item {idx} validation errors:", item_serializer.errors)
                     return Response(
                         {'expense_items': {str(idx): item_serializer.errors}},
                         status=status.HTTP_400_BAD_REQUEST
@@ -338,21 +411,27 @@ def create_expense(request):
             })
             
     except Exception as e:
-        # print("Error creating expense:", str(e))
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 def expense_form_view(request):
     cities = City.objects.all()
     items = Item.objects.filter(type_choice='expenses')
     contracts = Contract.objects.all()
-    return render(request, 'hygienebox/expense_create.html', {'cities': cities, 'items': items, 'contracts': contracts})
+    user_city = getattr(request.user.profile, 'city', None)
+
+    return render(request, 'hygienebox/expense_create.html', {
+        'cities': cities,
+        'items': items,
+        'contracts': contracts,
+        'user_city': user_city,
+    })
 
 def expense_list_view(request):
     expense = Expense.objects.all().distinct()
     cities = City.objects.all()
 
     city = request.GET.get('city')
-    region = request.GET.get('region')
+    region = request.GET.get('region') 
     district = request.GET.get('district')
     town = request.GET.get('town')
     neighborhood = request.GET.get('neighborhood')
@@ -360,7 +439,7 @@ def expense_list_view(request):
     if city:
         expense = expense.filter(city_id=city)
     if region:
-        expense = expense.filter(region_id=region)
+       expense = expense.filter(regions__id=region)
     if district:
         expense = expense.filter(districts__id=district)
     if town:
@@ -425,7 +504,6 @@ def create_revenue(request):
             # Debug raw data
             print("Raw data received:", data)
             
-            # Parse revenue_items if exists
             revenue_items = []
             if 'revenue_items' in data:
                 try:
@@ -438,41 +516,33 @@ def create_revenue(request):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Manually validate we have revenue items
             if not revenue_items:
                 return Response(
                     {'revenue_items': 'This field is required.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
+            user_city = request.user.profile.city
             revenue_data = {
-                'city': data.get('city'),
-                'region': data.get('region'),
-                'districts': data.getlist('districts'),
-                'towns': data.getlist('towns'),
-                'neighborhoods': data.getlist('neighborhoods'),
+                'city': user_city.id if user_city else None,
+                'region': data.getlist('region'),
+                'receipt_number': data.get('receipt_number'),
+                'receipt_file': request.FILES.get('receipt_file'),
+                'receipt_date': data.get('receipt_date'),
             }
+
 
             # Create Revenue
             revenue_serializer = RevenueSerializer(data=revenue_data, context={'request': request})
             if not revenue_serializer.is_valid():
                 return Response(revenue_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # Save normally first
             revenue = revenue_serializer.save()
-
-            # Then update created_by/updated_by
             revenue.save(user=request.user)
 
 
             
             # Process each revenue item
             for idx, item_data in enumerate(revenue_items):
-                # Handle file upload if specified
-                file_key = item_data.get('receipt_file')
-                if file_key and file_key in request.FILES:
-                    item_data['receipt_file'] = request.FILES[file_key]
-                
                 # Create revenue item
                 item_serializer = RevenueItemSerializer(data=item_data, context={
                     'request': request,
@@ -480,7 +550,6 @@ def create_revenue(request):
                 })
                 
                 if not item_serializer.is_valid():
-                    # print(f"Revenue item {idx} validation errors:", item_serializer.errors)
                     return Response(
                         {'revenue_items': {str(idx): item_serializer.errors}},
                         status=status.HTTP_400_BAD_REQUEST
@@ -499,34 +568,28 @@ def create_revenue(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 def revenue_form_view(request):
-    cities = City.objects.all()
+    user_city = request.user.profile.city
     items = Item.objects.filter(type_choice='revenues')
-    return render(request, 'hygienebox/revenue_create.html', {'cities': cities, 'items': items})
-  
+    return render(request, 'hygienebox/revenue_create.html', {
+        'user_city_id': user_city.id if user_city else None,
+        'items': items
+    })
+
 def revenues_list_view(request):
-    revenue = Revenue.objects.all().distinct()
-    cities = City.objects.all()
+    user_city = request.user.profile.city
+    revenue = Revenue.objects.filter(city=user_city).distinct()
 
-    city = request.GET.get('city')
     region = request.GET.get('region')
-    district = request.GET.get('district')
-    town = request.GET.get('town')
-    neighborhood = request.GET.get('neighborhood')
-
-    if city:
-        revenue = revenue.filter(city_id=city)
     if region:
-        revenue = revenue.filter(region_id=region)
-    if district:
-        revenue = revenue.filter(districts__id=district)
-    if town:
-        revenue = revenue.filter(towns__id=town)
-    if neighborhood:
-        revenue = revenue.filter(neighborhoods__id=neighborhood)
+        revenue = revenue.filter(region__id=region)
+
+    # Get regions linked to the user's city
+    regions = Region.objects.filter(country=user_city)
 
     context = {
-        'revenue_list': revenue.distinct(),
-        'cities': cities,
+        'revenue_list': revenue,
+        'regions': regions,
+        'selected_region': region,
     }
 
     return render(request, 'hygienebox/revenue_list.html', context)
@@ -544,6 +607,7 @@ def edit_revenue(request, revenue_id):
             instance = form.save(commit=False)
             instance.updated_by = request.user
             instance.save()
+            form.save_m2m()
             formset.save()
             return redirect('revenues_list')
         else:
@@ -581,47 +645,37 @@ def reports(request):
     if request.method == 'POST' and report_form.is_valid():
         city = report_form.cleaned_data.get('city')
         region = report_form.cleaned_data.get('region')
-        district = report_form.cleaned_data.get('district')
-        town = report_form.cleaned_data.get('town')
-        neighborhood = report_form.cleaned_data.get('neighborhood')
         from_date = report_form.cleaned_data.get('from_date')
         to_date = report_form.cleaned_data.get('to')
 
         if city:
             filters_revenue &= Q(revenueitem__revenue__city=city)
             filters_expense &= Q(expenseitem__expense__city=city)
+
         if region:
             filters_revenue &= Q(revenueitem__revenue__region=region)
-            filters_expense &= Q(expenseitem__expense__region=region)
-        if district:
-            filters_revenue &= Q(revenueitem__revenue__districts=district)
-            filters_expense &= Q(expenseitem__expense__districts=district)
-        if town:
-            filters_revenue &= Q(revenueitem__revenue__towns=town)
-            filters_expense &= Q(expenseitem__expense__towns=town)
-        if neighborhood:
-            filters_revenue &= Q(revenueitem__revenue__neighborhoods=neighborhood)
-            filters_expense &= Q(expenseitem__expense__neighborhoods=neighborhood)
+            filters_expense &= Q(expenseitem__expense__regions=region)  # ✅ Use correct M2M field
 
         if from_date and to_date:
-            # 🔥 Here is the corrected line!
-            filters_revenue &= Q(revenueitem__distributions__month__range=(from_date, to_date))
+            filters_revenue &= Q(revenueitem__revenue__receipt_date__range=(from_date, to_date))
             filters_expense &= Q(expenseitem__on_date__range=(from_date, to_date))
         elif from_date:
-            filters_revenue &= Q(revenueitem__distributions__month__gte=from_date)
+            filters_revenue &= Q(revenueitem__revenue__receipt_date__gte=from_date)
             filters_expense &= Q(expenseitem__on_date__gte=from_date)
         elif to_date:
-            filters_revenue &= Q(revenueitem__distributions__month__lte=to_date)
+            filters_revenue &= Q(revenueitem__revenue__receipt_date__lte=to_date)
             filters_expense &= Q(expenseitem__on_date__lte=to_date)
 
+    # Revenue Aggregation by Item
     revenues = (
         Item.objects.filter(type_choice="revenues")
         .annotate(
-            total_value=Coalesce(Sum('revenueitem__distributions__amount', filter=filters_revenue), Value(0))
+            total_value=Coalesce(Sum('revenueitem__value', filter=filters_revenue), Value(0))
         )
         .values('name', 'total_value')
     )
 
+    # Expense Aggregation by Item
     expenses = (
         Item.objects.filter(type_choice="expenses")
         .annotate(

@@ -11,7 +11,7 @@
     <form id="expenseForm" class="form" enctype="multipart/form-data">
         <div class="columns is-multiline">
 
-            <div class="column is-6">
+            <!-- <div class="column is-6">
                 <label class="label">{% trans "City" %}</label>
                 <div class="select is-fullwidth">
                     <select name="city" id="citySelect">
@@ -21,14 +21,15 @@
                         {% endfor %}
                     </select>
                 </div>
-            </div>
+            </div> -->
 
             <div class="column is-6">
-                <label class="label">{% trans "Region" %}</label>
-                <div class="select is-fullwidth">
-                    <select name="region" id="regionSelect"></select>
+                <label class="label">{% trans "Regions" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select multiple name="regions" id="regionSelect"></select>
                 </div>
             </div>
+            
 
             <div class="column is-6">
                 <label class="label">{% trans "Districts" %}</label>
@@ -49,6 +50,21 @@
                 <div class="select is-multiple is-fullwidth">
                     <select multiple name="neighborhoods" id="neighborhoodSelect"></select>
                 </div>
+            </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Receipt Number" %}</label>
+                <input type="text" name="receipt_number" class="input" placeholder="{% trans 'Enter Receipt Number' %}">
+            </div>
+            
+            <div class="column is-6">
+                <label class="label">{% trans "Receipt File" %}</label>
+                <input type="file" name="receipt_file" class="input">
+            </div>
+            
+            <div class="column is-6">
+                <label class="label">{% trans "Receipt Date" %}</label>
+                <input type="date" name="receipt_date" class="input">
             </div>
 
             <div class="column is-12">
@@ -76,7 +92,8 @@
         amountDue: "{{ _('Amount Due')|escapejs }}",
         value: "{{ _('Value')|escapejs }}",
         receiptNumber: "{{ _('Receipt Number')|escapejs }}",
-        date: "{{ _('Date')|escapejs }}"
+        date: "{{ _('Date')|escapejs }}",
+        paidFor: "{{ _('Paid For')|escapejs }}"
     };
     let itemIndex = 0;
     const itemOptions = `{% for item in items %}<option value="{{ item.id }}">{{ item.name }}</option>{% endfor %}`;
@@ -108,8 +125,21 @@
                         </select>
                     </div>
                 </div>
-                <input class="input my-1" type="number" name="item-${itemIndex}-value"
-                    placeholder="${placeholders.value}">
+                <div class="field contract-only" style="display: none;">
+                    <div class="columns is-gapless is-mobile">
+                        
+                        <div class="column is-half">
+                        <input class="input my-1" type="number" name="item-${itemIndex}-amount_due"
+                                placeholder="${placeholders.amountDue}">
+                        </div>
+
+                        <div class="column is-half">
+                        <input class="input my-1" type="text" name="item-${itemIndex}-paid_for"
+                                placeholder="${placeholders.paidFor}">
+                        </div>
+
+                    </div>
+                </div>
                 <div class="field contract-only" style="display:none;">
                     <input class="input my-1" type="number" name="item-${itemIndex}-taxes"
                         placeholder="${placeholders.taxes}">
@@ -118,15 +148,11 @@
                     <input class="input my-1" type="number" name="item-${itemIndex}-hanged_value"
                         placeholder="${placeholders.hangedValue}">
                 </div>
-                <div class="field contract-only" style="display:none;">
-                    <input class="input my-1" type="number" name="item-${itemIndex}-amount_due"
-                        placeholder="${placeholders.amountDue}">
-                </div>
-                <input class="input my-1" type="text" name="item-${itemIndex}-receipt_number"
-                    placeholder="${placeholders.receiptNumber}">
+                <input class="input my-1" type="number" name="item-${itemIndex}-value"
+                    placeholder="${placeholders.value}">
+                
                 <input class="input my-1" type="date" name="item-${itemIndex}-on_date"
                     placeholder="${placeholders.date}">
-                <input class="input my-1" type="file" name="item-${itemIndex}-receipt_file">
             </div>
         `);
         itemIndex++;
@@ -159,23 +185,6 @@
         checkIfContractSelected();
     }
 
-    // function checkIfContractSelected() {
-    //     let isContractSelected = false;
-    //     document.querySelectorAll('[name$="-item"]').forEach(select => {
-    //         const selectedText = select.options[select.selectedIndex]?.textContent.trim();
-    //         if (selectedText === "تعاقدات") {
-    //             isContractSelected = true;
-    //         }
-    //     });
-
-    //     const locationFields = ['#citySelect', '#regionSelect', '#districtSelect', '#townSelect', '#neighborhoodSelect'];
-    //     locationFields.forEach(selector => {
-    //         const field = document.querySelector(selector).closest('.column');
-    //         if (field) {
-    //             field.style.display = isContractSelected ? 'none' : '';
-    //         }
-    //     });
-    // }
     function checkIfContractSelected() {
         let isContractSelected = false;
         document.querySelectorAll('[name$="-item"]').forEach(select => {
@@ -186,7 +195,7 @@
         });
 
         // Hide/Show location fields
-        const locationFields = ['#citySelect', '#regionSelect', '#districtSelect', '#townSelect', '#neighborhoodSelect'];
+        const locationFields = ['#regionSelect', '#districtSelect', '#townSelect', '#neighborhoodSelect'];
         locationFields.forEach(selector => {
             const field = document.querySelector(selector)?.closest('.column');
             if (field) {
@@ -209,23 +218,15 @@
     function getData(url, callback) {
         fetch(url).then(res => res.json()).then(callback);
     }
-    
-    $('#citySelect').change(function () {
-        const cityId = $(this).val();
-        $('#regionSelect').empty(); $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
-        if (cityId) {
-            getData(`/hygienebox/regions/?city_id=${cityId}`, data => {
-                $('#regionSelect').append('<option value="">{% trans "Select Region" %}</option>');
-                data.forEach(region => $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`));
-            });
-        }
-    });
-    
+
     $('#regionSelect').change(function () {
-        const regionId = $(this).val();
-        $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
-        if (regionId) {
-            getData(`/hygienebox/districts/?region_id=${regionId}`, data => {
+        const regionIds = $(this).val();  // this will be an array
+        $('#districtSelect').empty();
+        $('#townSelect').empty();
+        $('#neighborhoodSelect').empty();
+
+        if (regionIds && regionIds.length > 0) {
+            getData(`/hygienebox/districts/?region_ids=${regionIds.join(',')}`, data => {
                 data.forEach(d => $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`));
             });
         }
@@ -251,17 +252,39 @@
         }
     });
     
+    document.addEventListener("DOMContentLoaded", function () {
+        const userCityId = "{{ user_city.id|default:'' }}";
+
+
+        if (userCityId) {
+            getData(`/hygienebox/regions/?city_id=${userCityId}`, data => {
+                $('#regionSelect').empty();
+                data.forEach(region => {
+                    $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
+                });
+            });
+        }
+    });
+
     document.getElementById('expenseForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
         const formData = new FormData();
-        formData.append('city', $('#citySelect').val() || '');
-        formData.append('region', $('#regionSelect').val() || '');
+        // formData.append('city', $('#citySelect').val() || '');
+        // formData.append('region', $('#regionSelect').val() || '');
+        ($('#regionSelect').val() || []).forEach(val => formData.append('regions', val));
 
         // Add districts, towns, neighborhoods
         ($('#districtSelect').val() || []).forEach(val => formData.append('districts', val));
         ($('#townSelect').val() || []).forEach(val => formData.append('towns', val));
         ($('#neighborhoodSelect').val() || []).forEach(val => formData.append('neighborhoods', val));
+        formData.append('receipt_number', $('input[name="receipt_number"]').val() || '');
+        formData.append('receipt_date', $('input[name="receipt_date"]').val() || '');
+
+        const receiptFileInput = $('input[name="receipt_file"]')[0];
+        if (receiptFileInput && receiptFileInput.files.length > 0) {
+            formData.append('receipt_file', receiptFileInput.files[0]);
+        }
 
         // Build expense items array
         const expenseItems = [];
@@ -273,7 +296,6 @@
             const itemData = {
                 item: itemContainer.find(`[name="item-${i}-item"]`).val(),
                 value: itemContainer.find(`[name="item-${i}-value"]`).val(),
-                receipt_number: itemContainer.find(`[name="item-${i}-receipt_number"]`).val(),
                 on_date: itemContainer.find(`[name="item-${i}-on_date"]`).val()
             };
 
@@ -293,13 +315,8 @@
             const amountDue = itemContainer.find(`[name="item-${i}-amount_due"]`).val();
             if (amountDue) itemData.amount_due = amountDue;
 
-            // Handle file upload
-            const fileInput = itemContainer.find(`[name="item-${i}-receipt_file"]`)[0];
-            if (fileInput && fileInput.files.length > 0) {
-                const fileKey = `receipt_file_${i}`;
-                formData.append(fileKey, fileInput.files[0]);
-                itemData.receipt_file = fileKey;
-            }
+            const paidFor = itemContainer.find(`[name="item-${i}-paid_for"]`).val();
+            if (paidFor) itemData.paid_for = paidFor;
 
             expenseItems.push(itemData);
         }

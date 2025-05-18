@@ -16,65 +16,61 @@
         <p class="title is-4 mb-3">{% trans 'Expense Information' %}</p>
         <div class="box">
             <div class="columns is-multiline">
+
+                <div class="column is-half">
+                    <label class="label">{{ expense_form.city.label }}</label>
+                    <div class="select is-fullwidth">
+                        {{ expense_form.city }}
+                    </div>
+                </div>
+
+                <div class="column is-half">
+                    <label class="label">{{ expense_form.regions.label }}</label>
+                    <div class="select is-fullwidth">
+                        {{ expense_form.regions }}
+                    </div>
+                </div>
                 
-                <!-- City -->
+                <div class="column is-full">
+                    <label class="label">{{ expense_form.districts.label }}</label>
+                    {{ expense_form.districts }}
+                </div>
+
+                <div class="column is-full">
+                    <label class="label">{{ expense_form.towns.label }}</label>
+                    {{ expense_form.towns }}
+                </div>
+
+                <div class="column is-full">
+                    <label class="label">{{ expense_form.neighborhood.label }}</label>
+                    {{ expense_form.neighborhood }}
+                </div>
+
+                <!-- New fields in Expense -->
                 <div class="column is-half">
-                    <div class="field">
-                        <label class="label">{{ expense_form.city.label }}</label>
-                        <div class="control">
-                            <div class="select is-fullwidth">
-                                {{ expense_form.city }}
-                            </div>
-                        </div>
-                    </div>
+                    <label class="label">{% trans 'Receipt Number' %}</label>
+                    <input type="text" name="receipt_number" class="input" value="{{ expense.receipt_number }}">
                 </div>
 
-                <!-- Region -->
                 <div class="column is-half">
-                    <div class="field">
-                        <label class="label">{{ expense_form.region.label }}</label>
-                        <div class="control">
-                            <div class="select is-fullwidth">
-                                {{ expense_form.region }}
-                            </div>
-                        </div>
-                    </div>
+                    <label class="label">{% trans 'Receipt File' %}</label>
+                    <input type="file" name="receipt_file" class="input">
+                    {% if expense.receipt_file %}
+                        <p class="mt-2">
+                            <a href="{{ expense.receipt_file.url }}" target="_blank" class="button is-small is-link">
+                                {% trans "View current receipt" %}
+                            </a>
+                        </p>
+                    {% endif %}
                 </div>
 
-                <!-- Districts -->
-                <div class="column is-full">
-                    <div class="field">
-                        <label class="label">{{ expense_form.districts.label }}</label>
-                        <div class="control">
-                            {{ expense_form.districts }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Towns -->
-                <div class="column is-full">
-                    <div class="field">
-                        <label class="label">{{ expense_form.towns.label }}</label>
-                        <div class="control">
-                            {{ expense_form.towns }}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Neighborhoods -->
-                <div class="column is-full">
-                    <div class="field">
-                        <label class="label">{{ expense_form.neighborhood.label }}</label>
-                        <div class="control">
-                            {{ expense_form.neighborhood }}
-                        </div>
-                    </div>
+                <div class="column is-half">
+                    <label class="label">{% trans 'Receipt Date' %}</label>
+                    <input type="date" name="receipt_date" class="input" value="{{ expense.receipt_date|date:'Y-m-d' }}">
                 </div>
 
             </div>
         </div>
-
-
 
         <!-- Expense Items Formset -->
         <p class="title is-4 mt-5 mb-3">{% trans 'Items' %}</p>
@@ -90,15 +86,6 @@
                         <label class="label has-text-weight-semibold" style="text-align: start;">{{ field.label }}</label>
                         <div class="control">
                             {{ field }}
-                            
-                            {# Special case for showing existing receipt file #}
-                            {% if field.name == "receipt_file" and form.instance.receipt_file %}
-                                <p class="mt-2">
-                                    <a href="{{ form.instance.receipt_file.url }}" target="_blank" class="button is-small is-link">
-                                        {% trans "View current receipt" %}
-                                    </a>
-                                </p>
-                            {% endif %}
                         </div>
                         {% if field.help_text %}
                         <p class="help">{{ field.help_text }}</p>
@@ -121,8 +108,6 @@
             {% endfor %}
         </div>
 
-
-        <!-- Save Button -->
         <div class="mt-4 has-text-centered">
             <button type="submit" class="button is-success is-medium">
                 {% trans "Save Changes" %}
@@ -145,8 +130,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!response.ok) throw new Error(`Failed to load neighborhoods. Status: ${response.status}`);
 
             const data = await response.json();
-            console.log("Loaded neighborhoods:", data);
-
             neighborhoodSelect.innerHTML = '<option value="">---------</option>';
             data.forEach((n) => {
                 const option = document.createElement("option");
@@ -162,13 +145,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    siteSelect?.addEventListener("change", (e) => {
-        loadNeighborhoods(e.target.value);
-    });
-
     if (siteSelect && siteSelect.value) {
         loadNeighborhoods(siteSelect.value, selectedNeighborhood);
     }
+
+    siteSelect?.addEventListener("change", (e) => {
+        loadNeighborhoods(e.target.value);
+    });
 });
 </script>
 {% endblock %}

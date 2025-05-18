@@ -25,6 +25,10 @@ class Item(models.Model):
 
 #Contracts
 class Contract(models.Model):
+    PAYMENT_FREQUENCY_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+    ]
     # Relations to geographical entities
     city = models.ForeignKey(City, null=True, blank=True, related_name='contracts', on_delete=models.CASCADE)
     region = models.ForeignKey(Region, null=True, blank=True, related_name='contracts', on_delete=models.CASCADE)
@@ -45,16 +49,44 @@ class Contract(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_by = models.ForeignKey(User, null=True, blank=True, related_name="contract_updated", on_delete=models.SET_NULL)
     updated_at = models.DateTimeField(auto_now=True)
+    down_payment_percentage = models.FloatField(
+    null=True, blank=True, verbose_name=_("Down Payment (%)"),
+    help_text=_("If set, the value field will be calculated")
+    )
+    down_payment_value = models.IntegerField(
+        null=True, blank=True, verbose_name=_("Down Payment (EGP)"),
+        help_text=_("If set, it overrides percentage")
+    )
+    payment_frequency = models.CharField(
+        max_length=10,
+        choices=PAYMENT_FREQUENCY_CHOICES,
+        default='monthly',
+        verbose_name=_("Payment Frequency")
+    )
     
     def __str__(self):
         return f"Contract with {self.provider_name}"    
 
     def save(self, *args, **kwargs):
-        if self.remaining is None:
-            self.remaining = self.value 
+        # Calculate down_payment_value if only percentage is provided
+        if self.down_payment_percentage is not None and self.down_payment_value is None:
+            self.down_payment_value = int((self.down_payment_percentage / 100) * self.value)
+
+        # Calculate down_payment_percentage if only value is provided
+        elif self.down_payment_value is not None and self.down_payment_percentage is None:
+            self.down_payment_percentage = round((self.down_payment_value / self.value) * 100, 2)
+
+        # Fallback if neither is provided
+        elif self.down_payment_value is None and self.down_payment_percentage is None:
+            self.down_payment_value = 0
+            self.down_payment_percentage = 0
+
+        # Ensure remaining is value minus down payment
+        self.remaining = self.value - (self.down_payment_value or 0)
         
         if self.commencing_date and self.duration:
             self.end_date = self.commencing_date + relativedelta(months=self.duration)
+        
         user = kwargs.pop('user', None)
 
         if not self.pk:  # If creating
@@ -65,8 +97,30 @@ class Contract(models.Model):
                 self.updated_by = user
                 
         super().save(*args, **kwargs)
+        self.generate_expected_payments()
+
         self.commit_contract_to_related_entities()
     
+    def generate_expected_payments(self):
+        from datetime import timedelta
+
+        # Clear old payments
+        self.expected_payments.all().delete()
+
+        remaining_amount = self.remaining
+        frequency_months = 1 if self.payment_frequency == 'monthly' else 3
+        number_of_payments = self.duration // frequency_months
+
+        payment_value = remaining_amount / number_of_payments
+        start_date = self.contract_date + relativedelta(months=1)
+
+        for i in range(number_of_payments):
+            payment_date = start_date + relativedelta(months=i * frequency_months)
+            ExpectedPayment.objects.create(
+                contract=self,
+                payment_date=payment_date,
+                amount=round(payment_value)
+            )
     def commit_contract_to_related_entities(self):
         """Commit this contract based on the hierarchy selection logic."""
         if self.city:
@@ -117,14 +171,28 @@ class Contract(models.Model):
         for neighborhood in selected_neighborhoods:
             # Example: Assign contract ID to neighborhood, create log, or link to M2M
             pass
+        
+class ExpectedPayment(models.Model):
+    contract = models.ForeignKey(
+        Contract, related_name='expected_payments', on_delete=models.CASCADE
+    )
+    payment_date = models.DateField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"Payment of {self.amount} on {self.payment_date}"
 
 # Expense Model
 class Expense(models.Model):
     city = models.ForeignKey(City, null=True, blank=True, related_name='expenses', on_delete=models.CASCADE)
-    region = models.ForeignKey(Region, null=True, blank=True, related_name='expenses', on_delete=models.CASCADE)
+    regions = models.ManyToManyField(Region, blank=True, related_name='expenses')
     districts = models.ManyToManyField(District, blank=True, related_name='expenses')
     towns = models.ManyToManyField(Town, blank=True, related_name='expenses')
     neighborhoods = models.ManyToManyField(Neighborhood, blank=True, related_name='expenses')
+    
+    receipt_number = models.CharField(max_length=50, null=True)
+    receipt_file = models.FileField(upload_to='expenses/receipts/', null=True, blank=True)
+    receipt_date = models.DateField(null=True, blank=True)
 
     register_number = models.CharField(max_length=15, unique=True, blank=True)
     created_by = models.ForeignKey(User, null=True, blank=True, related_name="expense_created", on_delete=models.SET_NULL)
@@ -142,34 +210,33 @@ class Expense(models.Model):
     def save(self, *args, **kwargs):
         user = kwargs.pop('user', None)
 
-        if not self.pk:  # If creating
+        if not self.pk:
             if user:
                 self.created_by = user
-        else:  # If updating
+        else:
             if user:
                 self.updated_by = user
-                
+
         creating = not self.pk
         if creating and not self.register_number:
-            super().save(*args, **kwargs)  # Initial save to get ID
+            super().save(*args, **kwargs)  # Save to get ID
             self.register_number = f"E{self.id}"
-            # Use update_fields to avoid triggering full model re-validation
             super().save(update_fields=["register_number"])
         else:
             super().save(*args, **kwargs)
-        self.commit_selected_entities()
 
+        self.commit_selected_entities()
 
     def commit_selected_entities(self):
         """
-        This method can process user selection logic,
-        or ensure correct hierarchy enforcement if needed.
+        Automatically associate districts, towns, and neighborhoods
+        based on selected regions and manual selections.
         """
         if self.city:
             self._commit_to_city(self.city)
 
-        if self.region:
-            self._commit_to_region(self.region, list(self.districts.all()))
+        for region in self.regions.all():
+            self._commit_to_region(region, list(self.districts.filter(region=region)))
 
         for district in self.districts.all():
             self._commit_to_district(district, list(self.towns.filter(district=district)))
@@ -179,7 +246,7 @@ class Expense(models.Model):
 
     def _commit_to_city(self, city):
         for region in city.regions.all():
-            self._commit_to_region(region, [])
+            self._commit_to_region(region, list(self.districts.filter(region=region)))
 
     def _commit_to_region(self, region, selected_districts):
         districts = selected_districts or region.districts.all()
@@ -195,8 +262,9 @@ class Expense(models.Model):
 
     def _commit_to_town(self, town, selected_neighborhoods):
         neighborhoods = selected_neighborhoods or town.neighborhoods.all()
-        # This could log them, validate, or process in future
+        # Reserved for future logic
         pass
+
 
 # ExpenseItem Model
 class ExpenseItem(models.Model):
@@ -208,9 +276,8 @@ class ExpenseItem(models.Model):
     taxes = models.IntegerField(default=0)
     hanged_value = models.IntegerField(default=0)
     amount_due = models.IntegerField(default=0)
+    paid_for = models.CharField(max_length=255, null=True, blank=True)
     on_date = models.DateField()
-    receipt_number = models.CharField(max_length=50)
-    receipt_file = models.FileField(upload_to='expenses/receipts/', null=True, blank=True)
     other_text = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
@@ -241,11 +308,12 @@ class ExpenseItem(models.Model):
 # Revenues
 class Revenue(models.Model):
     city = models.ForeignKey(City, null=True, blank=True, related_name='revenues', on_delete=models.CASCADE)
-    region = models.ForeignKey(Region, null=True, blank=True, related_name='revenues', on_delete=models.CASCADE)
-    districts = models.ManyToManyField(District, blank=True, related_name='revenues')
-    towns = models.ManyToManyField(Town, blank=True, related_name='revenues')
-    neighborhoods = models.ManyToManyField(Neighborhood, blank=True, related_name='revenues')
+    region = models.ManyToManyField(Region, blank=True, related_name='revenues')
 
+    receipt_number = models.CharField(max_length=50, null=True, blank=True)
+    receipt_file = models.FileField(upload_to='revenues/receipts/', null=True, blank=True)
+    receipt_date = models.DateField(null=True, blank=True)
+    
     register_number = models.CharField(max_length=15 , unique=True, blank=True)
     created_by = models.ForeignKey(User, null=True, blank=True, related_name="revenue_created", on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -261,106 +329,32 @@ class Revenue(models.Model):
 
     def save(self, *args, **kwargs):
         user = kwargs.pop('user', None)
-
-        if not self.pk:  # If creating
-            if user:
-                self.created_by = user
-        else:  # If updating
-            if user:
-                self.updated_by = user
+        
+        if not self.pk and user:
+            self.created_by = user
+        elif user:
+            self.updated_by = user
                 
         creating = not self.pk
         if creating and not self.register_number:
-            super().save(*args, **kwargs)  # Initial save to get ID
+            super().save(*args, **kwargs) 
             self.register_number = f"E{self.id}"
-            # Use update_fields to avoid triggering full model re-validation
             super().save(update_fields=["register_number"])
         else:
             super().save(*args, **kwargs)
-        self.commit_selected_entities()
 
-
-    def commit_selected_entities(self):
-        """
-        This method can process user selection logic,
-        or ensure correct hierarchy enforcement if needed.
-        """
-        if self.city:
-            self._commit_to_city(self.city)
-
-        if self.region:
-            self._commit_to_region(self.region, list(self.districts.all()))
-
-        for district in self.districts.all():
-            self._commit_to_district(district, list(self.towns.filter(district=district)))
-
-        for town in self.towns.all():
-            self._commit_to_town(town, list(self.neighborhoods.filter(town=town)))
-
-    def _commit_to_city(self, city):
-        for region in city.regions.all():
-            self._commit_to_region(region, [])
-
-    def _commit_to_region(self, region, selected_districts):
-        districts = selected_districts or region.districts.all()
-        for district in districts:
-            towns = list(self.towns.filter(district=district))
-            self._commit_to_district(district, towns)
-
-    def _commit_to_district(self, district, selected_towns):
-        towns = selected_towns or district.towns.all()
-        for town in towns:
-            neighborhoods = list(self.neighborhoods.filter(town=town))
-            self._commit_to_town(town, neighborhoods)
-
-    def _commit_to_town(self, town, selected_neighborhoods):
-        neighborhoods = selected_neighborhoods or town.neighborhoods.all()
-        # This could log them, validate, or process in future
-        pass
-
+# RevenueItem Model
 class RevenueItem(models.Model):
     revenue = models.ForeignKey(Revenue ,on_delete=models.CASCADE ,null = True, blank=True ,related_name='revenue_items')
     item = models.ForeignKey(Item ,on_delete=models.CASCADE ,null=True)
     value = models.IntegerField()
     from_date = models.DateField()
     to_date = models.DateField()
-    receipt_number = models.CharField(max_length=50)
-    receipt_file = models.FileField(upload_to='revenues/receipts/', null=True, blank=True)
     other_text = models.CharField(max_length=255, null=True, blank=True)
 
     def __str__(self):
         return f'{self.revenue.register_number} - {self.item.name} - EGP{self.value}'
 
-    def generate_distributions(self):
-        if not self.from_date or not self.to_date or self.value is None:
-            return
-
-        # Calculate number of months correctly (exclude the end month)
-        total_months = (self.to_date.year - self.from_date.year) * 12 + (self.to_date.month - self.from_date.month)
-        if total_months <= 0:
-            return
-
-        monthly_value = self.value // total_months
-        current_date = self.from_date
-
-        for _ in range(total_months):
-            RevenueDistribution.objects.create(
-                revenue_item=self,
-                month=current_date.replace(day=1),
-                amount=monthly_value
-            )
-            current_date += relativedelta(months=1)
-
     def save(self, *args, **kwargs):
-            is_new = self.pk is None
-            super().save(*args, **kwargs)
-            if is_new:
-                self.generate_distributions()
-
-class RevenueDistribution(models.Model):
-    revenue_item = models.ForeignKey(RevenueItem, on_delete=models.CASCADE, related_name='distributions')
-    month = models.DateField() 
-    amount = models.IntegerField()
-
-    def __str__(self):
-        return f"{self.revenue_item} - {self.month.strftime('%B %Y')} - EGP{self.amount}"
+        super().save(*args, **kwargs)
+ 

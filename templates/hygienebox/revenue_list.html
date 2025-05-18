@@ -17,7 +17,7 @@
     <div class="box p-4 mb-4">
         <form method="get">
             <div class="columns is-multiline">
-                <div class="column is-2">
+                <!-- <div class="column is-2">
                     <label class="label">{% trans "City" %}</label>
                     <div class="select is-fullwidth">
                         <select name="city" id="citySelect">
@@ -29,45 +29,31 @@
                             {% endfor %}
                         </select>
                     </div>
-                </div>
+                </div> -->
 
-                <div class="column is-2">
+                <!-- <div class="column is-2">
                     <label class="label">{% trans "Region" %}</label>
                     <div class="select is-fullwidth">
                         <select name="region" id="regionSelect">
                             <option value="">{% trans "All Regions" %}</option>
                         </select>
                     </div>
-                </div>
-
-                <div class="column is-2">
-                    <label class="label">{% trans "District" %}</label>
+                </div> -->
+                <div class="column is-5">
+                    <label class="label">{% trans "Region" %}</label>
                     <div class="select is-fullwidth">
-                        <select name="district" id="districtSelect">
-                            <option value="">{% trans "All Districts" %}</option>
+                        <select name="region">
+                            <option value="">{% trans "All Regions" %}</option>
+                            {% for region in regions %}
+                                <option value="{{ region.id }}" {% if selected_region == region.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ region.name }}
+                                </option>
+                            {% endfor %}
                         </select>
                     </div>
                 </div>
-
-                <div class="column is-2">
-                    <label class="label">{% trans "Town" %}</label>
-                    <div class="select is-fullwidth">
-                        <select name="town" id="townSelect">
-                            <option value="">{% trans "All Towns" %}</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="column is-2">
-                    <label class="label">{% trans "Neighborhood" %}</label>
-                    <div class="select is-fullwidth">
-                        <select name="neighborhood" id="neighborhoodSelect">
-                            <option value="">{% trans "All Neighborhoods" %}</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="column is-2">
+                
+                <div class="column is-3">
                     <label class="label">&nbsp;</label>
                     <button class="button is-info is-fullwidth" type="submit">
                         <i class="fas fa-filter"></i> {% trans 'Filter' %}
@@ -81,46 +67,42 @@
     <table class="table is-fullwidth is-striped is-hoverable">
         <thead>
             <tr>
-                <th>{% trans 'Register Number' %}</th>
+                <th>{% trans 'Receipt Number' %}</th>
                 <th>{% trans 'City' %}</th>
                 <th>{% trans 'Region' %}</th>
-                <th>{% trans 'Districts' %}</th>
-                <th>{% trans 'Towns' %}</th>
-                <th>{% trans 'Neighborhoods' %}</th>
-                <th>{% trans 'Created At' %}</th>
                 <th>{% trans 'Total Value (EGP)' %}</th>
+                <th>{% trans 'Receipt File' %}</th>
+                <th>{% trans 'Receipt Date' %}</th>
+                <th>{% trans 'Created At' %}</th>
                 <th>{% trans 'Actions' %}</th>
             </tr>
         </thead>
         <tbody>
             {% for revenue in revenue_list %}
             <tr>
-                <td>{{ revenue.register_number }}</td>
+                <td>{{ revenue.receipt_number }}</td>
                 <td>{{ revenue.city }}</td>
-                <td>{{ revenue.region }}</td>
                 <td>
-                    {% for district in revenue.districts.all %}
-                        {{ district.name }}{% if not forloop.last %}, {% endif %}
+                    {% for region in revenue.region.all %}
+                        {{ region.name }}{% if not forloop.last %}, {% endif %}
                     {% empty %}
                         -
                     {% endfor %}
                 </td>
-                <td>
-                    {% for town in revenue.towns.all %}
-                        {{ town.name }}{% if not forloop.last %}, {% endif %}
-                    {% empty %}
-                        -
-                    {% endfor %}
-                </td>
-                <td>
-                    {% for neighborhood in revenue.neighborhoods.all %}
-                        {{ neighborhood.name }}{% if not forloop.last %}, {% endif %}
-                    {% empty %}
-                        -
-                    {% endfor %}
-                </td>
-                <td>{{ revenue.created_at|date:"d/m/Y" }}</td>
+                
+                
                 <td>{{ revenue.total_revenues|intcomma }}</td>
+                <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">
+                    {% if revenue.receipt_file %}
+                        <a href="{{ revenue.receipt_file.url }}" target="_blank" class="button is-small is-link">
+                            {% trans "View" %}
+                        </a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ revenue.receipt_date |date:"d/m/Y" }}</td>
+                <td>{{ revenue.created_at|date:"d/m/Y" }}</td>
                 <td>
                     {% if user|has_group:"Admin" %}
                     <a href="{% url 'edit-revenue' revenue.id %}" class="button is-warning is-small">{% trans 'Edit' %}</a>
@@ -160,13 +142,13 @@
                     {% trans "Created by" %}: {{ revenue.created_by.get_full_name|default:revenue.created_by.username }} |
                   {% endif %}
                   {% if revenue.created_at %}
-                    {% trans "Created at" %}: {{ revenue.created_at|date:"Y-m-d H:i" }} |
+                    {% trans "Created at" %}: {{ revenue.created_at|date:"d-m-Y H:i" }} |
                   {% endif %}
                   {% if revenue.updated_by %}
                     {% trans "Updated by" %}: {{ revenue.updated_by.get_full_name|default:revenue.updated_by.username }} |
                   {% endif %}
                   {% if revenue.updated_at %}
-                    {% trans "Updated at" %}: {{ revenue.updated_at|date:"Y-m-d H:i" }}
+                    {% trans "Updated at" %}: {{ revenue.updated_at|date:"d-m-Y H:i" }}
                   {% endif %}
                 </div>
             </div>
@@ -177,19 +159,16 @@
             <thead>
                 <tr>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Item' %}</th>
-                    <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Receipt Number' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Value' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Text' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'From Date' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'To Date' %}</th>
-                    <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Receipt File' %}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in revenue.revenue_items.all %}
                 <tr>
                     <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.item.name }}</td>
-                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.receipt_number }}</td>
                     <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.value|intcomma }}</td>
 
                     {% if item.other_text %}
@@ -198,17 +177,8 @@
                         <td>-</td>
                     {% endif %}
 
-                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.from_date }}</td>
-                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.to_date }}</td>
-                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">
-                        {% if item.receipt_file %}
-                            <a href="{{ item.receipt_file.url }}" target="_blank" class="button is-small is-link">
-                                {% trans "View" %}
-                            </a>
-                        {% else %}
-                            -
-                        {% endif %}
-                    </td>
+                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.from_date |date:"d/m/Y" }}</td>
+                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.to_date |date:"d/m/Y" }}</td>
                 </tr>
                 
                 {% empty %}
@@ -232,86 +202,39 @@
 {% endblock content %}
 {% block javascript %}
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const regionSelect = document.getElementById('regionSelect');
-    const districtSelect = document.getElementById('districtSelect');
-    const townSelect = document.getElementById('townSelect');
-    const neighborhoodSelect = document.getElementById('neighborhoodSelect');
+// document.addEventListener('DOMContentLoaded', function () {
+//     const regionSelect = document.getElementById('regionSelect');
 
-    $('#citySelect').change(function () {
-        const cityId = $(this).val();
-        resetSelect(regionSelect, 'All Regions');
-        resetSelect(districtSelect, 'All Districts');
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+//     $('#citySelect').change(function () {
+//         const cityId = $(this).val();
+//         resetSelect(regionSelect, '{% trans "All Regions" %}');
 
-        if (cityId) {
-            $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
-                data.forEach(region => {
-                    $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
-                });
-            });
-        }
-    });
+//         if (cityId) {
+//             $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
+//                 data.forEach(region => {
+//                     $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
 
-    $('#regionSelect').change(function () {
-        const regionId = $(this).val();
-        resetSelect(districtSelect, 'All Districts');
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+//     function resetSelect(selectElement, placeholder) {
+//         selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+//     }
+// });
 
-        if (regionId) {
-            $.get(`/hygienebox/districts/?region_id=${regionId}`, data => {
-                data.forEach(d => {
-                    $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`);
-                });
-            });
-        }
-    });
-
-    $('#districtSelect').change(function () {
-        const districtId = $(this).val();
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
-
-        if (districtId) {
-            $.get(`/hygienebox/towns/?district_ids=${districtId}`, data => {
-                data.forEach(t => {
-                    $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`);
-                });
-            });
-        }
-    });
-
-    $('#townSelect').change(function () {
-        const townId = $(this).val();
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
-
-        if (townId) {
-            $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, data => {
-                data.forEach(n => {
-                    $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`);
-                });
-            });
-        }
-    });
-
-    function resetSelect(selectElement, placeholder) {
-        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
-    }
-});
 function openModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) {
-    modal.classList.add('is-active');
-  }
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.add('is-active');
+    }
 }
 
 function closeModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) {
-    modal.classList.remove('is-active');
-  }
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.classList.remove('is-active');
+    }
 }
 </script>
 {% endblock %}

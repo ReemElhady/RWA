@@ -12,45 +12,30 @@
         <div class="columns is-multiline">
 
             <div class="column is-6">
-                <label class="label">{% trans "City" %}</label>
-                <div class="select is-fullwidth">
-                    <select name="city" id="citySelect">
-                        <option value="">{% trans "Select City" %}</option>
-                        {% for city in cities %}
-                            <option value="{{ city.id }}">{{ city.name }}</option>
-                        {% endfor %}
+                <label class="label">{% trans "Region" %}</label>
+                <div class="select is-multiple is-fullwidth">
+                    <select name="region" id="regionSelect" multiple>
+                        <!-- Populate options dynamically -->
                     </select>
                 </div>
             </div>
+            
 
             <div class="column is-6">
-                <label class="label">{% trans "Region" %}</label>
-                <div class="select is-fullwidth">
-                    <select name="region" id="regionSelect"></select>
-                </div>
+                <label class="label">{% trans "Receipt Number" %}</label>
+                <input type="text" name="receipt_number" class="input" placeholder="{% trans 'Enter Receipt Number' %}">
             </div>
-
+            
             <div class="column is-6">
-                <label class="label">{% trans "Districts" %}</label>
-                <div class="select is-multiple is-fullwidth">
-                    <select multiple name="districts" id="districtSelect"></select>
-                </div>
+                <label class="label">{% trans "Receipt File" %}</label>
+                <input type="file" name="receipt_file" class="input">
             </div>
-
+            
             <div class="column is-6">
-                <label class="label">{% trans "Towns" %}</label>
-                <div class="select is-multiple is-fullwidth">
-                    <select multiple name="towns" id="townSelect"></select>
-                </div>
+                <label class="label">{% trans "Receipt Date" %}</label>
+                <input type="date" name="receipt_date" class="input">
             </div>
-
-            <div class="column is-6">
-                <label class="label">{% trans "Neighborhoods" %}</label>
-                <div class="select is-multiple is-fullwidth">
-                    <select multiple name="neighborhoods" id="neighborhoodSelect"></select>
-                </div>
-            </div>
-
+            
             <div class="column is-12">
                 <label class="label">{% trans "Revenue Items" %}</label>
                 <div id="items-container"></div>
@@ -68,6 +53,21 @@
 {% endblock %}
 {% block javascript %}
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const userCityId = {{ user_city_id|default:"null" }};
+        if (userCityId) {
+            getData(`/hygienebox/regions/?city_id=${userCityId}`, function (regions) {
+                const regionSelect = document.getElementById('regionSelect');
+                regions.forEach(region => {
+                    const option = document.createElement('option');
+                    option.value = region.id;
+                    option.textContent = region.name;
+                    regionSelect.appendChild(option);
+                });
+            });
+        }
+    });
+
     const placeholders = {
         otherDescription: "{{ _('Other Description')|escapejs }}",
         value: "{{ _('Value')|escapejs }}",
@@ -96,13 +96,11 @@
                 </div>
                 <input class="input my-1" type="number" name="item-${itemIndex}-value"
                     placeholder="${placeholders.value}">
-                <input class="input my-1" type="text" name="item-${itemIndex}-receipt_number"
-                    placeholder="${placeholders.receiptNumber}">
                 <input class="input my-1" type="date" name="item-${itemIndex}-from_date"
                     placeholder="${placeholders.fromDate}">
                 <input class="input my-1" type="date" name="item-${itemIndex}-to_date"
                     placeholder="${placeholders.toDate}">
-                <input class="input my-1" type="file" name="item-${itemIndex}-receipt_file">
+                
             </div>
         `);
         itemIndex++;
@@ -125,62 +123,46 @@
         }
     }
     
+    // Helper to fetch data and run callback
     function getData(url, callback) {
-        fetch(url).then(res => res.json()).then(callback);
+        fetch(url)
+            .then(res => res.json())
+            .then(callback)
+            .catch(err => console.error('Error loading data:', err));
     }
+
+    // // When City changes, load Regions
+    // $('#citySelect').change(function () {
+    //     const cityId = $(this).val();
+    //     const regionSelect = $('#regionSelect');
+
+    //     regionSelect.empty().append('<option value="">{% trans "Select Region" %}</option>');
+
+    //     if (cityId) {
+    //         getData(`/hygienebox/regions/?city_id=${cityId}`, function (regions) {
+    //             regions.forEach(region => {
+    //                 regionSelect.append(`<option value="${region.id}">${region.name}</option>`);
+    //             });
+    //         });
+    //     }
+    // });
+
     
-    $('#citySelect').change(function () {
-        const cityId = $(this).val();
-        $('#regionSelect').empty(); $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
-        if (cityId) {
-            getData(`/hygienebox/regions/?city_id=${cityId}`, data => {
-                $('#regionSelect').append('<option value="">{% trans "Select Region" %}</option>');
-                data.forEach(region => $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`));
-            });
-        }
-    });
-    
-    $('#regionSelect').change(function () {
-        const regionId = $(this).val();
-        $('#districtSelect').empty(); $('#townSelect').empty(); $('#neighborhoodSelect').empty();
-        if (regionId) {
-            getData(`/hygienebox/districts/?region_id=${regionId}`, data => {
-                data.forEach(d => $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`));
-            });
-        }
-    });
-    
-    $('#districtSelect').change(function () {
-        const ids = $(this).val();
-        $('#townSelect').empty(); $('#neighborhoodSelect').empty();
-        if (ids) {
-            getData(`/hygienebox/towns/?district_ids=${ids.join(',')}`, data => {
-                data.forEach(t => $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`));
-            });
-        }
-    });
-    
-    $('#townSelect').change(function () {
-        const ids = $(this).val();
-        $('#neighborhoodSelect').empty();
-        if (ids) {
-            getData(`/hygienebox/neighborhoods/?town_ids=${ids.join(',')}`, data => {
-                data.forEach(n => $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`));
-            });
-        }
-    });
     
     document.getElementById('revenueForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
         const formData = new FormData();
-        formData.append('city', $('#citySelect').val() || '');
-        formData.append('region', $('#regionSelect').val() || '');
-
-        // Add districts, towns, neighborhoods
-        ($('#districtSelect').val() || []).forEach(val => formData.append('districts', val));
-        ($('#townSelect').val() || []).forEach(val => formData.append('towns', val));
-        ($('#neighborhoodSelect').val() || []).forEach(val => formData.append('neighborhoods', val));
+        // formData.append('city', $('#citySelect').val() || '');
+        // Append multiple selected regions
+        const selectedRegions = Array.from(document.getElementById('regionSelect').selectedOptions).map(opt => opt.value);
+        selectedRegions.forEach(regionId => formData.append('region', regionId));
+        formData.append('receipt_number', $('input[name="receipt_number"]').val() || '');
+        formData.append('receipt_date', $('input[name="receipt_date"]').val() || '');
+        const receiptFile = $('input[name="receipt_file"]')[0];
+        if (receiptFile && receiptFile.files.length > 0) {
+            formData.append('receipt_file', receiptFile.files[0]);
+        }
 
         // Build revenue items array
         const revenueItems = [];
@@ -192,7 +174,6 @@
             const itemData = {
                 item: itemContainer.find(`[name="item-${i}-item"]`).val(),
                 value: itemContainer.find(`[name="item-${i}-value"]`).val(),
-                receipt_number: itemContainer.find(`[name="item-${i}-receipt_number"]`).val(),
                 from_date: itemContainer.find(`[name="item-${i}-from_date"]`).val(),
                 to_date: itemContainer.find(`[name="item-${i}-to_date"]`).val()
             };
@@ -200,14 +181,6 @@
             // Optional fields
             const otherText = itemContainer.find(`[name="item-${i}-other_text"]`).val();
             if (otherText) itemData.other_text = otherText;
-
-            // Handle file upload
-            const fileInput = itemContainer.find(`[name="item-${i}-receipt_file"]`)[0];
-            if (fileInput && fileInput.files.length > 0) {
-                const fileKey = `receipt_file_${i}`;
-                formData.append(fileKey, fileInput.files[0]);
-                itemData.receipt_file = fileKey;
-            }
 
             revenueItems.push(itemData);
         }

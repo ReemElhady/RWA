@@ -78,6 +78,7 @@
     </div>
 
     <!-- Contracts Table -->
+    <div class="table-container-x">
     <table class="table is-fullwidth is-striped is-hoverable">
         <thead>
             <tr>
@@ -152,21 +153,28 @@
                     <td>{{ contract.end_date }}</td>
                     
                     <td>
-                        {% if user|has_group:"Admin" %}
-                        <a href="{% url 'edit-contract' contract.id %}" class="button is-warning is-small">{% trans 'Edit' %}</a>
-                        <form action="{% url 'delete-contract' contract.id %}" method="post" style="display:inline;">
-                            {% csrf_token %}
-                            <button type="submit" class="button is-danger is-small"
-                                    onclick="return confirm('{% trans 'Are you sure you want to delete this contract?' %}')">
-                                {% trans 'Delete' %}
+                        <div class="contract-actions">
+                            <a href="{% url 'edit-contract' contract.id %}" class="button is-warning is-small">{% trans 'Edit' %}</a>
+                    
+                            <form action="{% url 'delete-contract' contract.id %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="button is-danger is-small"
+                                        onclick="return confirm('{% trans 'Are you sure you want to delete this contract?' %}')">
+                                    {% trans 'Delete' %}
+                                </button>
+                            </form>
+                            <button type="button" class="button is-info is-small" onclick="openModal('modal-contract-{{ contract.id }}')">
+                                {% trans 'View Details' %}
                             </button>
-                        </form>
-                        {% endif %}
-                        <!-- View Details Button -->
-                        <button type="button" class="button is-info is-small" onclick="openModal('modal-contract-{{ contract.id }}')">
-                            {% trans 'View Details' %}
-                        </button>
+
+                            <a href="{% url 'contract-analytics' contract.id %}" class="button is-link is-small">
+                                <i class="fas fa-chart-bar"></i> {% trans 'View Analytics' %}
+                            </a>
+                         
+                    
+                        </div>
                     </td>
+                    
 
                 </tr>
             {% empty %}
@@ -176,6 +184,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% for contract in contract_list %}
 <div id="modal-contract-{{ contract.id }}" class="modal">
     <div class="modal-background" onclick="closeModal('modal-contract-{{ contract.id }}')"></div>
@@ -257,6 +266,14 @@
                         <td>{{ contract.remaining }}</td>
                     </tr>
                     <tr>
+                        <th>{% trans "Payment Frequency" %}</th>
+                        <td>{{ contract.payment_frequency }}</td>
+                    </tr>
+                    <tr>
+                        <th>{% trans "Contract Date" %}</th>
+                        <td>{{ contract.contract_date }}</td>
+                    </tr>
+                    <tr>
                         <th>{% trans "Start Date" %}</th>
                         <td>{{ contract.commencing_date }}</td>
                     </tr>
@@ -311,73 +328,191 @@
 {% block javascript %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const regionSelect = document.getElementById('regionSelect');
-    const districtSelect = document.getElementById('districtSelect');
-    const townSelect = document.getElementById('townSelect');
-    const neighborhoodSelect = document.getElementById('neighborhoodSelect');
+    const selectedCity = "{{ request.GET.city|default:'' }}";
+    const selectedRegion = "{{ request.GET.region|default:'' }}";
+    const selectedDistrict = "{{ request.GET.district|default:'' }}";
+    const selectedTown = "{{ request.GET.town|default:'' }}";
+    const selectedNeighborhood = "{{ request.GET.neighborhood|default:'' }}";
 
-    $('#citySelect').change(function () {
+    const $regionSelect = $('#regionSelect');
+    const $districtSelect = $('#districtSelect');
+    const $townSelect = $('#townSelect');
+    const $neighborhoodSelect = $('#neighborhoodSelect');
+
+    function resetSelect($element, placeholder) {
+        $element.empty().append(`<option value="">${placeholder}</option>`);
+    }
+
+    function populateRegions(cityId, callback) {
+        resetSelect($regionSelect, 'All Regions');
+        $.get(`/hygienebox/regions/?city_id=${cityId}`, function (regions) {
+            regions.forEach(region => {
+                $regionSelect.append(`<option value="${region.id}" ${region.id == selectedRegion ? 'selected' : ''}>${region.name}</option>`);
+            });
+            if (callback) callback();
+        });
+    }
+
+    function populateDistricts(regionId, callback) {
+        resetSelect($districtSelect, 'All Districts');
+        $.get(`/hygienebox/districts/?region_id=${regionId}`, function (districts) {
+            districts.forEach(d => {
+                $districtSelect.append(`<option value="${d.id}" ${d.id == selectedDistrict ? 'selected' : ''}>${d.name}</option>`);
+            });
+            if (callback) callback();
+        });
+    }
+
+    function populateTowns(districtId, callback) {
+        resetSelect($townSelect, 'All Towns');
+        $.get(`/hygienebox/towns/?district_ids=${districtId}`, function (towns) {
+            towns.forEach(t => {
+                $townSelect.append(`<option value="${t.id}" ${t.id == selectedTown ? 'selected' : ''}>${t.name}</option>`);
+            });
+            if (callback) callback();
+        });
+    }
+
+    function populateNeighborhoods(townId) {
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
+        $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, function (neighborhoods) {
+            neighborhoods.forEach(n => {
+                $neighborhoodSelect.append(`<option value="${n.id}" ${n.id == selectedNeighborhood ? 'selected' : ''}>${n.name}</option>`);
+            });
+        });
+    }
+
+    // Initial load if city is selected
+    if (selectedCity) {
+        populateRegions(selectedCity, function () {
+            if (selectedRegion) {
+                populateDistricts(selectedRegion, function () {
+                    if (selectedDistrict) {
+                        populateTowns(selectedDistrict, function () {
+                            if (selectedTown) {
+                                populateNeighborhoods(selectedTown);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Chain handlers
+    $('#citySelect').on('change', function () {
         const cityId = $(this).val();
-        resetSelect(regionSelect, 'All Regions');
-        resetSelect(districtSelect, 'All Districts');
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($regionSelect, 'All Regions');
+        resetSelect($districtSelect, 'All Districts');
+        resetSelect($townSelect, 'All Towns');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (cityId) {
-            $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
-                data.forEach(region => {
-                    $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
-                });
-            });
+            populateRegions(cityId);
         }
     });
 
-    $('#regionSelect').change(function () {
+    $regionSelect.on('change', function () {
         const regionId = $(this).val();
-        resetSelect(districtSelect, 'All Districts');
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($districtSelect, 'All Districts');
+        resetSelect($townSelect, 'All Towns');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (regionId) {
-            $.get(`/hygienebox/districts/?region_id=${regionId}`, data => {
-                data.forEach(d => {
-                    $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`);
-                });
-            });
+            populateDistricts(regionId);
         }
     });
 
-    $('#districtSelect').change(function () {
+    $districtSelect.on('change', function () {
         const districtId = $(this).val();
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($townSelect, 'All Towns');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (districtId) {
-            $.get(`/hygienebox/towns/?district_ids=${districtId}`, data => {
-                data.forEach(t => {
-                    $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`);
-                });
-            });
+            populateTowns(districtId);
         }
     });
 
-    $('#townSelect').change(function () {
+    $townSelect.on('change', function () {
         const townId = $(this).val();
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (townId) {
-            $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, data => {
-                data.forEach(n => {
-                    $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`);
-                });
-            });
+            populateNeighborhoods(townId);
         }
     });
-
-    function resetSelect(selectElement, placeholder) {
-        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
-    }
 });
+
+
+// document.addEventListener('DOMContentLoaded', function () {
+//     const regionSelect = document.getElementById('regionSelect');
+//     const districtSelect = document.getElementById('districtSelect');
+//     const townSelect = document.getElementById('townSelect');
+//     const neighborhoodSelect = document.getElementById('neighborhoodSelect');
+
+//     $('#citySelect').change(function () {
+//         const cityId = $(this).val();
+//         resetSelect(regionSelect, 'All Regions');
+//         resetSelect(districtSelect, 'All Districts');
+//         resetSelect(townSelect, 'All Towns');
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (cityId) {
+//             $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
+//                 data.forEach(region => {
+//                     $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     $('#regionSelect').change(function () {
+//         const regionId = $(this).val();
+//         resetSelect(districtSelect, 'All Districts');
+//         resetSelect(townSelect, 'All Towns');
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (regionId) {
+//             $.get(`/hygienebox/districts/?region_id=${regionId}`, data => {
+//                 data.forEach(d => {
+//                     $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     $('#districtSelect').change(function () {
+//         const districtId = $(this).val();
+//         resetSelect(townSelect, 'All Towns');
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (districtId) {
+//             $.get(`/hygienebox/towns/?district_ids=${districtId}`, data => {
+//                 data.forEach(t => {
+//                     $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     $('#townSelect').change(function () {
+//         const townId = $(this).val();
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (townId) {
+//             $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, data => {
+//                 data.forEach(n => {
+//                     $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     function resetSelect(selectElement, placeholder) {
+//         selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+//     }
+// });
+
 function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {

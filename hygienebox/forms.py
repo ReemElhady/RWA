@@ -46,48 +46,52 @@ class ContractForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['city', 'region', 'districts', 'towns', 'neighborhoods']
+        fields = ['city', 'regions', 'districts', 'towns', 'neighborhoods', 'receipt_number', 'receipt_file', 'receipt_date']
         labels = {
             'city': _("City"),
-            'region': _("Region"),
+            'regions': _("Region"),
             'districts': _("Districts"),
             'towns': _("Towns"),
             'neighborhoods': _("Neighborhoods"),
+            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
+            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
+            'receipt_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
         }
         widgets = {
             'city': forms.Select(attrs={'class': 'select is-fullwidth'}),
-            'region': forms.Select(attrs={'class': 'select is-fullwidth'}),
+            'regions': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
             'districts': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
             'towns': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
             'neighborhoods': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
+            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
+            'receipt_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
         }
 
 class ExpenseItemForm(forms.ModelForm):
     class Meta:
         model = ExpenseItem
-        fields = ['item', 'contract', 'value', 'taxes', 'hanged_value', 'amount_due', 'on_date', 'receipt_number', 'receipt_file', 'other_text']
+        fields = ['item', 'contract', 'amount_due', 'taxes', 'hanged_value','value', 'paid_for', 'on_date', 'other_text']
         labels = {
             'item': _("Item"),
             'contract': _("Contract"),
-            'value': _("Value"),
+            'amount_due': _("Amount Due"),
+            'paid_for': _("Paid For"),
             'taxes': _("Taxes"),
             'hanged_value': _("Hanged Value"),
-            'amount_due': _("Amount Due"),
+            'value': _("Value"),
             'on_date': _("On Date"),
-            'receipt_number': _("Receipt Number"),
-            'receipt_file': _("Receipt File"),
             'other_text': _("Other Description"),
         }
         widgets = {
             'item': forms.Select(attrs={'class': 'input'}),
             'contract': forms.Select(attrs={'class': 'input'}),
-            'value': forms.NumberInput(attrs={'class': 'input'}),
+            'amount_due': forms.NumberInput(attrs={'class': 'input'}),
+            'paid_for': forms.TextInput(attrs={'class': 'input'}),
             'taxes': forms.NumberInput(attrs={'class': 'input'}),
             'hanged_value': forms.NumberInput(attrs={'class': 'input'}),
-            'amount_due': forms.NumberInput(attrs={'class': 'input'}),
+            'value': forms.NumberInput(attrs={'class': 'input'}),
             'on_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
-            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
-            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
             'other_text': forms.TextInput(attrs={'class': 'input'}),
         }
 
@@ -107,19 +111,19 @@ class ExpenseItemForm(forms.ModelForm):
                         self.fields['other_text'].required = False
                 elif instance.item.name.strip() == 'أخري':
                     # It's an "Other" item
-                    for field_name in ['taxes', 'hanged_value', 'amount_due', 'contract']:
+                    for field_name in ['taxes', 'hanged_value', 'amount_due', 'paid_for', 'contract']:
                         if field_name in self.fields:
                             self.fields[field_name].required = False
                             self.fields[field_name].widget = forms.HiddenInput()
                 else:
                     # Regular item
-                    for field_name in ['taxes', 'hanged_value', 'amount_due', 'other_text', 'contract']:
+                    for field_name in ['taxes', 'hanged_value', 'amount_due', 'other_text', 'paid_for', 'contract']:
                         if field_name in self.fields:
                             self.fields[field_name].required = False
                             self.fields[field_name].widget = forms.HiddenInput()
             else:
                 # No item at all
-                for field_name in ['taxes', 'hanged_value', 'amount_due', 'other_text', 'contract']:
+                for field_name in ['taxes', 'hanged_value', 'amount_due', 'other_text', 'paid_for', 'contract']:
                     if field_name in self.fields:
                         self.fields[field_name].required = False
                         self.fields[field_name].widget = forms.HiddenInput()
@@ -136,33 +140,31 @@ ExpenseItemFormSet = inlineformset_factory(
 class RevenueForm(forms.ModelForm):
     class Meta:
         model = Revenue
-        fields = ['city', 'region', 'districts', 'towns', 'neighborhoods']
+        fields = ['region', 'receipt_number', 'receipt_file', 'receipt_date']
         labels = {
             'city': _("City"),
             'region': _("Region"),
-            'districts': _("Districts"),
-            'towns': _("Towns"),
-            'neighborhoods': _("Neighborhoods"),
+            'receipt_number': _("Receipt Number"),
+            'receipt_file': _("Receipt File"),
+            'receipt_date': _("Receipt Date"),
         }
         widgets = {
             'city': forms.Select(attrs={'class': 'select is-fullwidth'}),
-            'region': forms.Select(attrs={'class': 'select is-fullwidth'}),
-            'districts': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
-            'towns': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
-            'neighborhoods': forms.SelectMultiple(attrs={'class': 'select is-multiple is-fullwidth'}),
+            'region': forms.SelectMultiple(attrs={'class': 'select is-fullwidth', 'style': 'height: 250px;'}),
+            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
+            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
+            'receipt_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
         }
         
 class RevenueItemForm(forms.ModelForm):
     class Meta:
         model = RevenueItem
-        fields = ['item', 'value', 'from_date', 'to_date', 'receipt_number', 'receipt_file', 'other_text']
+        fields = ['item', 'value', 'from_date', 'to_date', 'other_text']
         labels = {
             'item': _("Item"),
             'value': _("Value"),
             'from_date': _("From Date"),
             'to_date': _("To Date"),
-            'receipt_number': _("Receipt Number"),
-            'receipt_file': _("Receipt File"),
             'other_text': _("Other Description"),
         }
         widgets = {
@@ -170,8 +172,6 @@ class RevenueItemForm(forms.ModelForm):
             'value': forms.NumberInput(attrs={'class': 'input'}),
             'from_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
             'to_date': forms.DateInput(attrs={'class': 'input', 'type': 'date'}),
-            'receipt_number': forms.TextInput(attrs={'class': 'input'}),
-            'receipt_file': forms.FileInput(attrs={'class': 'input'}),
             'other_text': forms.TextInput(attrs={'class': 'input'}),
         }
 

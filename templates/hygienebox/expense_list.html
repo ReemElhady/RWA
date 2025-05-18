@@ -81,23 +81,32 @@
     <table class="table is-fullwidth is-striped is-hoverable">
         <thead>
             <tr>
-                <th>{% trans 'Register Number' %}</th>
+                <th>{% trans 'Receipt Number' %}</th>
                 <th>{% trans 'City' %}</th>
                 <th>{% trans 'Region' %}</th>
                 <th>{% trans 'Districts' %}</th>
                 <th>{% trans 'Towns' %}</th>
                 <th>{% trans 'Neighborhoods' %}</th>
-                <th>{% trans 'Created At' %}</th>
+                <th>{% trans 'Receipt File' %}</th>
+                <th>{% trans 'Receipt Date' %}</th>
                 <th>{% trans 'Total Value (EGP)' %}</th>
+                <th>{% trans 'Created At' %}</th>
                 <th>{% trans 'Actions' %}</th>
             </tr>
         </thead>
         <tbody>
             {% for expense in expense_list %}
             <tr>
-                <td>{{ expense.register_number }}</td>
+                <td>{{ expense.receipt_number }}</td>
                 <td>{{ expense.city }}</td>
-                <td>{{ expense.region }}</td>
+                <td>
+                    {% for region in expense.regions.all %}
+                        {{ region.name }}{% if not forloop.last %}, {% endif %}
+                    {% empty %}
+                        -
+                    {% endfor %}
+                </td>
+
                 <td>
                     {% for district in expense.districts.all %}
                         {{ district.name }}{% if not forloop.last %}, {% endif %}
@@ -119,8 +128,19 @@
                         -
                     {% endfor %}
                 </td>
-                <td>{{ expense.created_at|date:"d/m/Y" }}</td>
+                
+                <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">
+                    {% if expense.receipt_file %}
+                        <a href="{{ expense.receipt_file.url }}" target="_blank" class="button is-small is-link">
+                            {% trans "View" %}
+                        </a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ expense.receipt_date |date:"d/m/Y" }}</td>
                 <td>{{ expense.total_expenses|intcomma }}</td>
+                <td>{{ expense.created_at|date:"d/m/Y" }}</td>
                 <td>
                     {% if user|has_group:"Admin" %}
                     <a href="{% url 'edit-expense' expense.id %}" class="button is-warning is-small">{% trans 'Edit' %}</a>
@@ -160,13 +180,13 @@
                     {% trans "Created by" %}: {{ expense.created_by.get_full_name|default:expense.created_by.username }} |
                   {% endif %}
                   {% if expense.created_at %}
-                    {% trans "Created at" %}: {{ expense.created_at|date:"Y-m-d H:i" }} |
+                    {% trans "Created at" %}: {{ expense.created_at|date:"d-m-Y H:i" }} |
                   {% endif %}
                   {% if expense.updated_by %}
                     {% trans "Updated by" %}: {{ expense.updated_by.get_full_name|default:expense.updated_by.username }} |
                   {% endif %}
                   {% if expense.updated_at %}
-                    {% trans "Updated at" %}: {{ expense.updated_at|date:"Y-m-d H:i" }}
+                    {% trans "Updated at" %}: {{ expense.updated_at|date:"d-m-Y H:i" }}
                   {% endif %}
                 </div>
             </div>
@@ -177,22 +197,20 @@
             <thead>
                 <tr>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Item' %}</th>
-                    <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Receipt Number' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Value' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Contract' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Taxes' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Hanged Value' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Amount Due' %}</th>
+                    <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Paid For' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Text' %}</th>
                     <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'On Date' %}</th>
-                    <th style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{% trans 'Receipt File' %}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in expense.expense_items.all %}
                 <tr>
                     <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.item.name }}</td>
-                    <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.receipt_number }}</td>
                     <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.value|intcomma }}</td>
 
                     {% if item.contract %}
@@ -200,7 +218,9 @@
                         <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.taxes|intcomma }}</td>
                         <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.hanged_value|intcomma }}</td>
                         <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.amount_due|intcomma }}</td>
+                        <td style="padding: 1rem 1.5rem; text-align: center; vertical-align: middle;">{{ item.paid_For }}</td>
                     {% else %}
+                        <td>-</td>
                         <td>-</td>
                         <td>-</td>
                         <td>-</td>
@@ -246,73 +266,191 @@
 {% block javascript %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const regionSelect = document.getElementById('regionSelect');
-    const districtSelect = document.getElementById('districtSelect');
-    const townSelect = document.getElementById('townSelect');
-    const neighborhoodSelect = document.getElementById('neighborhoodSelect');
+    const selectedCity = "{{ request.GET.city|default:'' }}";
+    const selectedRegion = "{{ request.GET.region|default:'' }}";
+    const selectedDistrict = "{{ request.GET.district|default:'' }}";
+    const selectedTown = "{{ request.GET.town|default:'' }}";
+    const selectedNeighborhood = "{{ request.GET.neighborhood|default:'' }}";
 
-    $('#citySelect').change(function () {
+    const $regionSelect = $('#regionSelect');
+    const $districtSelect = $('#districtSelect');
+    const $townSelect = $('#townSelect');
+    const $neighborhoodSelect = $('#neighborhoodSelect');
+
+    function resetSelect($element, placeholder) {
+        $element.empty().append(`<option value="">${placeholder}</option>`);
+    }
+
+    function populateRegions(cityId, callback) {
+        resetSelect($regionSelect, 'All Regions');
+        $.get(`/hygienebox/regions/?city_id=${cityId}`, function (regions) {
+            regions.forEach(region => {
+                $regionSelect.append(`<option value="${region.id}" ${region.id == selectedRegion ? 'selected' : ''}>${region.name}</option>`);
+            });
+            if (callback) callback();
+        });
+    }
+
+    function populateDistricts(regionId, callback) {
+        resetSelect($districtSelect, 'All Districts');
+        $.get(`/hygienebox/districts/?region_id=${regionId}`, function (districts) {
+            districts.forEach(d => {
+                $districtSelect.append(`<option value="${d.id}" ${d.id == selectedDistrict ? 'selected' : ''}>${d.name}</option>`);
+            });
+            if (callback) callback();
+        });
+    }
+
+    function populateTowns(districtId, callback) {
+        resetSelect($townSelect, 'All Towns');
+        $.get(`/hygienebox/towns/?district_ids=${districtId}`, function (towns) {
+            towns.forEach(t => {
+                $townSelect.append(`<option value="${t.id}" ${t.id == selectedTown ? 'selected' : ''}>${t.name}</option>`);
+            });
+            if (callback) callback();
+        });
+    }
+
+    function populateNeighborhoods(townId) {
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
+        $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, function (neighborhoods) {
+            neighborhoods.forEach(n => {
+                $neighborhoodSelect.append(`<option value="${n.id}" ${n.id == selectedNeighborhood ? 'selected' : ''}>${n.name}</option>`);
+            });
+        });
+    }
+
+    // Initial load if city is selected
+    if (selectedCity) {
+        populateRegions(selectedCity, function () {
+            if (selectedRegion) {
+                populateDistricts(selectedRegion, function () {
+                    if (selectedDistrict) {
+                        populateTowns(selectedDistrict, function () {
+                            if (selectedTown) {
+                                populateNeighborhoods(selectedTown);
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // Chain handlers
+    $('#citySelect').on('change', function () {
         const cityId = $(this).val();
-        resetSelect(regionSelect, 'All Regions');
-        resetSelect(districtSelect, 'All Districts');
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($regionSelect, 'All Regions');
+        resetSelect($districtSelect, 'All Districts');
+        resetSelect($townSelect, 'All Towns');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (cityId) {
-            $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
-                data.forEach(region => {
-                    $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
-                });
-            });
+            populateRegions(cityId);
         }
     });
 
-    $('#regionSelect').change(function () {
+    $regionSelect.on('change', function () {
         const regionId = $(this).val();
-        resetSelect(districtSelect, 'All Districts');
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($districtSelect, 'All Districts');
+        resetSelect($townSelect, 'All Towns');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (regionId) {
-            $.get(`/hygienebox/districts/?region_id=${regionId}`, data => {
-                data.forEach(d => {
-                    $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`);
-                });
-            });
+            populateDistricts(regionId);
         }
     });
 
-    $('#districtSelect').change(function () {
+    $districtSelect.on('change', function () {
         const districtId = $(this).val();
-        resetSelect(townSelect, 'All Towns');
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($townSelect, 'All Towns');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (districtId) {
-            $.get(`/hygienebox/towns/?district_ids=${districtId}`, data => {
-                data.forEach(t => {
-                    $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`);
-                });
-            });
+            populateTowns(districtId);
         }
     });
 
-    $('#townSelect').change(function () {
+    $townSelect.on('change', function () {
         const townId = $(this).val();
-        resetSelect(neighborhoodSelect, 'All Neighborhoods');
+        resetSelect($neighborhoodSelect, 'All Neighborhoods');
 
         if (townId) {
-            $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, data => {
-                data.forEach(n => {
-                    $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`);
-                });
-            });
+            populateNeighborhoods(townId);
         }
     });
-
-    function resetSelect(selectElement, placeholder) {
-        selectElement.innerHTML = `<option value="">${placeholder}</option>`;
-    }
 });
+
+
+// document.addEventListener('DOMContentLoaded', function () {
+//     const regionSelect = document.getElementById('regionSelect');
+//     const districtSelect = document.getElementById('districtSelect');
+//     const townSelect = document.getElementById('townSelect');
+//     const neighborhoodSelect = document.getElementById('neighborhoodSelect');
+
+//     $('#citySelect').change(function () {
+//         const cityId = $(this).val();
+//         resetSelect(regionSelect, 'All Regions');
+//         resetSelect(districtSelect, 'All Districts');
+//         resetSelect(townSelect, 'All Towns');
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (cityId) {
+//             $.get(`/hygienebox/regions/?city_id=${cityId}`, data => {
+//                 data.forEach(region => {
+//                     $('#regionSelect').append(`<option value="${region.id}">${region.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     $('#regionSelect').change(function () {
+//         const regionId = $(this).val();
+//         resetSelect(districtSelect, 'All Districts');
+//         resetSelect(townSelect, 'All Towns');
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (regionId) {
+//             $.get(`/hygienebox/districts/?region_id=${regionId}`, data => {
+//                 data.forEach(d => {
+//                     $('#districtSelect').append(`<option value="${d.id}">${d.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     $('#districtSelect').change(function () {
+//         const districtId = $(this).val();
+//         resetSelect(townSelect, 'All Towns');
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (districtId) {
+//             $.get(`/hygienebox/towns/?district_ids=${districtId}`, data => {
+//                 data.forEach(t => {
+//                     $('#townSelect').append(`<option value="${t.id}">${t.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     $('#townSelect').change(function () {
+//         const townId = $(this).val();
+//         resetSelect(neighborhoodSelect, 'All Neighborhoods');
+
+//         if (townId) {
+//             $.get(`/hygienebox/neighborhoods/?town_ids=${townId}`, data => {
+//                 data.forEach(n => {
+//                     $('#neighborhoodSelect').append(`<option value="${n.id}">${n.name}</option>`);
+//                 });
+//             });
+//         }
+//     });
+
+//     function resetSelect(selectElement, placeholder) {
+//         selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+//     }
+// });
+
 function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) {

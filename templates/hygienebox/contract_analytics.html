@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% block content %}
+<div class="box">
+    <h1 class="title is-4 has-text-link">{% trans "Contract Analytics" %}: {{ contract.provider_name }}</h1>
+
+    <canvas id="paymentsChart" width="100%" height="40"></canvas>
+
+    <a href="{% url 'contracts' %}" class="button mt-5">{% trans "Back to Contracts" %}</a>
+</div>
+{% endblock %}
+
+{% block javascript %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('paymentsChart').getContext('2d');
+const paymentsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: {{ chart_labels|safe }},
+        datasets: [
+            {
+                label: '{% trans "Expected Payment" %}',
+                data: {{ expected_values|safe }},
+                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+            },
+            {
+                label: '{% trans "Actual Paid" %}',
+                data: {{ actual_values|safe }},
+                backgroundColor: 'rgba(75, 192, 192, 0.6)'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'top' },
+            title: { display: true, text: '{% trans "Payment Comparison" %}' }
+        }
+    }
+});
+</script>
+{% endblock %}

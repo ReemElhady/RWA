@@ -14,7 +14,8 @@ urlpatterns = [
     path('contracts/', views.contract_list_view, name='contracts'),
     path('contracts/edit/<int:contract_id>/', views.edit_contract, name='edit-contract'),
     path('contracts/delete/<int:contract_id>/', views.delete_contract, name='delete-contract'),
-
+    path('contracts/<int:contract_id>/analytics/', views.contract_analytics_view, name='contract-analytics'),
+    
     #Expenses
     path('create/expense/', views.create_expense, name='create_expense'),
     path('expense/form/', views.expense_form_view, name='expense-form'),

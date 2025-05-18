@@ -74,13 +74,38 @@
                     <input class="input" type="number" name="value" placeholder="e.g., 50000" required>
                 </div>
             </div>
-
+            <div class="column is-6">
+                <label class="label">{% trans "Down Payment (EGP)" %}</label>
+                <div class="control">
+                    <input class="input" type="number" name="down_payment_value" placeholder="e.g., 50000">
+                </div>
+            </div>
+            <div class="column is-6">
+                <label class="label">{% trans "Down Payment %" %}</label>
+                <div class="control">
+                    <input class="input" type="number" name="down_payment_percentage" placeholder="e.g., 5%">
+                </div>
+            </div>
             <div class="column is-6">
                 <label class="label">{% trans "Duration (months)" %}</label>
                 <div class="control">
                     <input class="input" type="number" name="duration" value="12" required>
                 </div>
             </div>
+
+            <div class="column is-6">
+                <label class="label">{% trans "Payment Frequency" %}</label>
+                <div class="control">
+                    <div class="select is-fullwidth">
+                        <select name="payment_frequency" required>
+                            <option value="">{% trans "Select Frequency" %}</option>
+                            <option value="monthly">{% trans "Monthly" %}</option>
+                            <option value="quarterly">{% trans "Quarterly" %}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
 
             <div class="column is-6">
                 <label class="label">{% trans "Contract Date" %}</label>
@@ -165,10 +190,14 @@
 
     $('#contractForm').submit(function (e) {
         e.preventDefault();
+        const toNullable = val => val === "" ? null : val;
         const formData = {
             provider_name: $('input[name=provider_name]').val(),
             value: $('input[name=value]').val(),
+            down_payment_value: toNullable($('input[name=down_payment_value]').val()),
+            down_payment_percentage: toNullable($('input[name=down_payment_percentage]').val()),
             duration: $('input[name=duration]').val(),
+            payment_frequency: $('select[name=payment_frequency]').val(),
             contract_date: $('input[name=contract_date]').val(),
             commencing_date: $('input[name=commencing_date]').val(),
             city: $('#citySelect').val(),

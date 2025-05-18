@@ -1,11 +1,11 @@
 from django.contrib import admin
 from .models import (
-    Item, Contract, Expense, ExpenseItem, Revenue, RevenueItem, RevenueDistribution
+    Item, Contract, Expense, ExpenseItem, Revenue, RevenueItem, ExpectedPayment
 )
 
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
-    list_display = ('id','provider_name', 'city', 'region', 'contract_date', 'end_date', 'value', 'remaining', 'entry_date')
+    list_display = ('id','provider_name', 'city', 'region', 'contract_date', 'end_date', 'value', 'down_payment_percentage', 'down_payment_value', 'remaining','payment_frequency', 'entry_date')
     search_fields = ('provider_name',)
     list_filter = ('city', 'region', 'contract_date')
     filter_horizontal = ('districts', 'towns', 'neighborhoods')
@@ -19,24 +19,28 @@ class ItemAdmin(admin.ModelAdmin):
 #Expenses
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
-    list_display = ('register_number', 'created_at', 'city', 'region', 'total_expenses_display')
-    search_fields = ('register_number',)
-    list_filter = ('city', 'region', 'created_at')
+    list_display = ('register_number', 'created_at', 'city', 'get_regions', 'receipt_number', 'receipt_date', 'receipt_file', 'total_expenses_display')
+    search_fields = ('register_number', 'receipt_number')
+    list_filter = ('city', 'regions', 'created_at')
     filter_horizontal = ('districts', 'towns', 'neighborhoods')
     date_hierarchy = 'created_at'
     readonly_fields = ('register_number', 'created_at', 'total_expenses_display')  
     fieldsets = (
         (None, {
-            'fields': ('register_number',)
+            'fields': ('register_number', 'receipt_number', 'receipt_file', 'receipt_date')
         }),
         ('Location', {
-            'fields': ('city', 'region', 'districts', 'towns', 'neighborhoods')
+            'fields': ('city', 'regions', 'districts', 'towns', 'neighborhoods')
         }),
         ('Info', {  
             'fields': ('created_at', 'total_expenses_display')
         })
     )
 
+    def get_regions(self, obj):
+        return ", ".join([region.name for region in obj.regions.all()])
+    get_regions.short_description = "Regions"
+    
     def total_expenses_display(self, obj):
         return obj.total_expenses
     total_expenses_display.short_description = "Total Expenses (EGP)"
@@ -45,8 +49,8 @@ class ExpenseAdmin(admin.ModelAdmin):
 
 @admin.register(ExpenseItem)
 class ExpenseItemAdmin(admin.ModelAdmin):
-    list_display = ('expense', 'item', 'contract', 'value', 'taxes', 'hanged_value', 'amount_due', 'on_date', 'receipt_number', 'receipt_file','other_text')
-    search_fields = ('receipt_number', 'item__name', 'expense__register_number')
+    list_display = ('expense', 'item', 'contract', 'value', 'taxes', 'hanged_value', 'amount_due', 'paid_for', 'on_date','other_text')
+    search_fields = ('item__name', 'expense__register_number')
     list_filter = ('on_date', 'item')
     autocomplete_fields = ('expense', 'item', 'contract') 
     readonly_fields = ('expense',)
@@ -58,7 +62,7 @@ class ExpenseItemAdmin(admin.ModelAdmin):
             'fields': ('value', 'taxes', 'hanged_value', 'amount_due')
         }),
         ('Documentation', {
-            'fields': ('on_date', 'receipt_number', 'receipt_file', 'other_text')
+            'fields': ('on_date', 'paid_for', 'other_text')
         }),
     )
 
@@ -67,34 +71,39 @@ class ExpenseItemAdmin(admin.ModelAdmin):
 #Revenues
 @admin.register(Revenue)
 class RevenueAdmin(admin.ModelAdmin):
-    list_display = ('register_number', 'created_at', 'city', 'region', 'total_revenues_display')
-    search_fields = ('register_number',)
+    list_display = (
+        'register_number', 'created_at', 'city', 'region_list', 'receipt_number', 'receipt_date', 'receipt_file', 'total_revenues_display'
+    )
+    search_fields = ('register_number', 'receipt_number')
     list_filter = ('city', 'region', 'created_at')
-    filter_horizontal = ('districts', 'towns', 'neighborhoods')
     date_hierarchy = 'created_at'
-    readonly_fields = ('register_number', 'created_at', 'total_revenues_display') 
+    readonly_fields = ('register_number', 'created_at', 'total_revenues_display')
     fieldsets = (
         (None, {
-            'fields': ('register_number',) 
+            'fields': ('register_number', 'receipt_number', 'receipt_file', 'receipt_date')
         }),
         ('Location', {
-            'fields': ('city', 'region', 'districts', 'towns', 'neighborhoods')
+            'fields': ('city', 'region')
         }),
-        ('Info', { 
+        ('Info', {
             'fields': ('created_at', 'total_revenues_display')
         })
     )
+    
+    def region_list(self, obj):
+            return ", ".join(region.name for region in obj.region.all())
+    region_list.short_description = "Regions"
 
     def total_revenues_display(self, obj):
         return obj.total_revenues
     total_revenues_display.short_description = "Total Revenues (EGP)"
-    total_revenues_display.admin_order_field = 'total_revenues'
+
 
 
 @admin.register(RevenueItem)
 class RevenueItemAdmin(admin.ModelAdmin):
-    list_display = ('revenue', 'item', 'value', 'from_date', 'to_date', 'receipt_number', 'receipt_file', 'other_text')
-    search_fields = ('receipt_number', 'item__name', 'revenue__register_number')
+    list_display = ('revenue', 'item', 'value', 'from_date', 'to_date', 'other_text')
+    search_fields = ('item__name', 'revenue__register_number')
     list_filter = ('item',)
     autocomplete_fields = ('revenue', 'item') 
     readonly_fields = ('revenue',)
@@ -106,13 +115,12 @@ class RevenueItemAdmin(admin.ModelAdmin):
             'fields': ('value',)
         }),
         ('Documentation', {
-            'fields': ('receipt_number', 'receipt_file', 'other_text')
+            'fields': ('other_text',)
         }),
     )
 
-@admin.register(RevenueDistribution)
-class RevenueDistributionAdmin(admin.ModelAdmin):
-    list_display = ('revenue_item', 'month', 'amount')
-    list_filter = ('month',)
-    search_fields = ('revenue_item__revenue__register_number', 'revenue_item__item__name')
-    ordering = ('-month',)
+@admin.register(ExpectedPayment)
+class ExpectedPaymentAdmin(admin.ModelAdmin):
+    list_display = ('contract', 'payment_date', 'amount')
+    list_filter = ('payment_date',)
+    ordering = ('-payment_date',)
